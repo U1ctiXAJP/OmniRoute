@@ -8,6 +8,7 @@ import { applyCorsHeaders } from "../cors/origins";
 import { classifyRoute } from "./classify";
 import { classifyHostLocality } from "./routeGuard";
 import { resolveStampedPeer } from "./peerStamp";
+import { CUSTOM_MIDDLEWARE } from "@/custom-extensions/middleware/registry.ts";
 import { clientApiPolicy } from "./policies/clientApi";
 import { managementPolicy } from "./policies/management";
 import { publicPolicy } from "./policies/public";
@@ -205,6 +206,17 @@ export async function runAuthzPipeline(
   }
 
   const classification = classifyRoute(pathname, method);
+
+  // Run custom middleware extensions
+  for (const middleware of CUSTOM_MIDDLEWARE) {
+    try {
+      const result = await middleware({ request, classification, requestId });
+      if (result) return result;
+    } catch (error) {
+      console.error("[Authz] Custom middleware failed:", error);
+    }
+  }
+
   const guardedPathname = classification.normalizedPath;
   const managementDashboardRoute = isManagementDashboardRoute(classification, pathname);
 
