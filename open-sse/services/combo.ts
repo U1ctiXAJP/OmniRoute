@@ -117,6 +117,8 @@ import {
 } from "../../src/lib/resilience/settings";
 import { resolveReasoningBufferedMaxTokens, toPositiveInteger } from "./reasoningTokenBuffer.ts";
 
+import { CUSTOM_STRATEGIES } from "../../src/custom-extensions/strategies/registry.ts";
+
 // Status codes that should mark round-robin target semaphores as cooling down.
 const TRANSIENT_FOR_SEMAPHORE = [429, 502, 503, 504];
 // Patterns that signal all accounts for a provider are rate-limited / exhausted.
@@ -3719,6 +3721,15 @@ export async function handleComboChat({
   } else if (strategy === "context-optimized") {
     orderedTargets = sortTargetsByContextSize(orderedTargets);
     log.info("COMBO", `Context-optimized ordering: largest first (${orderedTargets[0]?.modelStr})`);
+  } else if (CUSTOM_STRATEGIES[strategy]) {
+    const customExecutor = CUSTOM_STRATEGIES[strategy];
+    orderedTargets = await customExecutor({
+      targets: orderedTargets,
+      comboName: combo.name,
+      body,
+      log,
+    });
+    log.info("COMBO", `Custom strategy "${strategy}" applied: ${orderedTargets.length} targets`);
   }
 
   orderedTargets = orderTargetsByEvalScores(orderedTargets, config.evalRouting, log);
