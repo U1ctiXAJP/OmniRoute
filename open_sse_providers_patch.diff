@@ -1,0 +1,11 @@
+<<<<<<< SEARCH
+import { kiroProvider } from "./registry/kiro/index.ts";
+
+export const REGISTRY: Record<string, RegistryEntry> = {
+=======
+import { kiroProvider } from "./registry/kiro/index.ts";
+import { CUSTOM_REGISTRY } from "../../../src/custom-extensions/providers/registry.ts";
+
+export const REGISTRY: Record<string, RegistryEntry> = {
+  ...CUSTOM_REGISTRY,
+>>>>>>> REPLACE
