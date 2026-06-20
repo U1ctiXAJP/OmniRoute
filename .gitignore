@@ -227,3 +227,9 @@ docs/prompts/AGENT-OWNERSHIP-PROTOCOL.md
 docs/prompts/AGENT-OWNERSHIP-PROTOCOL.omniroute-mim.md
 docs/prompts/AGENT-OWNERSHIP-PROTOCOL.omniroute-mid.md
 omniroute.md
+
+# Custom Extensions
+src/custom-extensions/**/*
+!src/custom-extensions/README.md
+!src/custom-extensions/**/.gitkeep
+!src/custom-extensions/**/registry.ts

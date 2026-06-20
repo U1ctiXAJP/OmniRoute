@@ -11,6 +11,7 @@ import { resolveStampedPeer } from "./peerStamp";
 import { clientApiPolicy } from "./policies/clientApi";
 import { managementPolicy } from "./policies/management";
 import { publicPolicy } from "./policies/public";
+import { CUSTOM_MIDDLEWARE } from "../../custom-extensions/middleware/registry.ts";
 import {
   AUTHZ_HEADER_AUTH_ID,
   AUTHZ_HEADER_AUTH_KIND,
@@ -264,6 +265,12 @@ export async function runAuthzPipeline(
     response.headers.set(AUTHZ_HEADER_ROUTE_CLASS, classification.routeClass);
     applyCorsHeaders(response, request);
     return response;
+  }
+
+  // Custom Extension: Middleware
+  for (const middleware of CUSTOM_MIDDLEWARE) {
+    const response = await middleware(request, { classification, requestId });
+    if (response) return response;
   }
 
   const policy = POLICIES[classification.routeClass];

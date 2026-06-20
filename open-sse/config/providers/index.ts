@@ -163,8 +163,10 @@ import { veoaifree_webProvider } from "./registry/veoaifree-web/index.ts";
 import { codexProvider } from "./registry/codex/index.ts";
 import { veniceProvider } from "./registry/venice/index.ts";
 import { kiroProvider } from "./registry/kiro/index.ts";
+import { CUSTOM_REGISTRY } from "../../../src/custom-extensions/providers/registry.ts";
 
 export const REGISTRY: Record<string, RegistryEntry> = {
+  ...CUSTOM_REGISTRY,
   aimlapi: aimlapiProvider,
   "ollama-cloud": ollama_cloudProvider,
   synthetic: syntheticProvider,

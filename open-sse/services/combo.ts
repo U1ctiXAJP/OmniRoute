@@ -58,6 +58,7 @@ import { checkCredentialGate, logCredentialSkip } from "./credentialGate.ts";
 import { emit } from "../../src/lib/events/eventBus";
 import { notifyWebhookEvent } from "../../src/lib/webhookDispatcher";
 import { classifyWithConfig } from "./intentClassifier.ts";
+import { CUSTOM_STRATEGIES } from "../../src/custom-extensions/strategies/registry.ts";
 import { selectProvider as selectAutoProvider } from "./autoCombo/engine.ts";
 import { selectWithStrategy } from "./autoCombo/routerStrategy.ts";
 import { parseAutoPrefix } from "./autoCombo/autoPrefix.ts";
@@ -427,6 +428,25 @@ export async function handleComboChat({
   apiKeyAllowedConnections = null,
 }: HandleComboChatOptions): Promise<Response> {
   const strategy = normalizeRoutingStrategy(combo.strategy || "priority");
+
+  // Custom Extension: Strategies
+  if (strategy in CUSTOM_STRATEGIES) {
+    const customHandler = (CUSTOM_STRATEGIES as any)[strategy];
+    if (typeof customHandler === "function") {
+      return customHandler({
+        body,
+        combo,
+        handleSingleModel,
+        isModelAvailable,
+        log,
+        settings,
+        allCombos,
+        relayOptions,
+        signal,
+        apiKeyAllowedConnections,
+      });
+    }
+  }
   const relayConfig =
     strategy === "context-relay" ? resolveContextRelayConfig(relayOptions?.config || null) : null;
 
