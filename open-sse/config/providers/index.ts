@@ -166,7 +166,6 @@ import { kiroProvider } from "./registry/kiro/index.ts";
 import { CUSTOM_REGISTRY } from "../../../src/custom-extensions/providers/registry.ts";
 
 export const REGISTRY: Record<string, RegistryEntry> = {
-  ...CUSTOM_REGISTRY,
   aimlapi: aimlapiProvider,
   "ollama-cloud": ollama_cloudProvider,
   synthetic: syntheticProvider,
@@ -330,4 +329,5 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   byteplus: byteplusProvider,
   mimocode: mimocodeProvider,
   wafer: waferProvider,
+  ...CUSTOM_REGISTRY,
 };
