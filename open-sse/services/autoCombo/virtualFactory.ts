@@ -11,6 +11,19 @@ import { hasUsableWebSessionCredential } from "@/shared/providers/webSessionCred
 import { defaultLogger as log } from "@omniroute/open-sse/utils/logger";
 import { getTokenLimit } from "../contextManager";
 import { getResolvedModelCapabilities } from "@/lib/modelCapabilities";
+import {
+  buildAutoCandidateFilter,
+  tierToWeightVariant,
+  type AutoCategory,
+  type AutoTier,
+} from "./suffixComposition";
+import { getHiddenModelsByProvider } from "@/models";
+
+/** #4235 Phase B: optional category/tier overlay for `auto/<category>:<tier>` combos. */
+export interface AutoComboSpec {
+  category?: AutoCategory;
+  tier?: AutoTier;
+}
 
 /** Minimal connection shape needed for virtual auto-combo factory */
 interface VirtualFactoryConn extends ConnectionFields {
@@ -117,13 +130,6 @@ function isChatAutoComboNoAuthProvider(providerDef: NoAuthProviderDefinition): b
   return providerDef.serviceKinds.includes("llm");
 }
 
-function getFirstRegistryModelId(providerInfo: { models?: Array<{ id?: string }> } | undefined) {
-  const firstModel = Array.isArray(providerInfo?.models) ? providerInfo.models[0] : undefined;
-  return typeof firstModel?.id === "string" && firstModel.id.trim().length > 0
-    ? firstModel.id
-    : undefined;
-}
-
 function getNoAuthCandidates(
   excludedProviders: Set<string>,
   blockedProviders: Set<string>
@@ -143,8 +149,8 @@ function getNoAuthCandidates(
       continue;
 
     const providerInfo = registry[providerId];
-    const modelId = getFirstRegistryModelId(providerInfo);
-    if (!modelId) continue;
+    const registryModels = Array.isArray(providerInfo?.models) ? providerInfo.models : [];
+    if (registryModels.length === 0) continue;
 
     // No-auth providers do not have provider_connections rows. Use the same
     // synthetic connection id returned by getProviderCredentials() so the
@@ -156,13 +162,18 @@ function getNoAuthCandidates(
         ? providerInfo.alias
         : null;
     const routingPrefix = providerDef.alias || registryAlias || providerId;
-    candidates.push({
-      provider: providerId,
-      connectionId: SYNTHETIC_NOAUTH_CONNECTION_ID,
-      model: modelId,
-      modelStr: `${routingPrefix}/${modelId}`,
-      costPer1MTokens: 0,
-    });
+
+    for (const model of registryModels) {
+      const modelId = typeof model?.id === "string" && model.id.trim().length > 0 ? model.id : null;
+      if (!modelId) continue;
+      candidates.push({
+        provider: providerId,
+        connectionId: SYNTHETIC_NOAUTH_CONNECTION_ID,
+        model: modelId,
+        modelStr: `${routingPrefix}/${modelId}`,
+        costPer1MTokens: 0,
+      });
+    }
   }
 
   return candidates;
@@ -213,7 +224,8 @@ export function computeAdvertisedLimits(candidates: Array<{ provider: string; mo
 }
 
 export async function createVirtualAutoCombo(
-  variant: AutoVariant | undefined
+  variant: AutoVariant | undefined,
+  spec?: AutoComboSpec
 ): Promise<VirtualAutoCombo> {
   const [connections, settings] = await Promise.all([
     getProviderConnections({ isActive: true }) as Promise<VirtualFactoryConn[]>,
@@ -222,6 +234,7 @@ export async function createVirtualAutoCombo(
   const blockedProviders = new Set(
     Array.isArray(settings.blockedProviders) ? (settings.blockedProviders as string[]) : []
   );
+  const hiddenModelsMap = getHiddenModelsByProvider();
 
   const validConnections = connections.filter(hasUsableConnectionCredential);
 
@@ -236,6 +249,10 @@ export async function createVirtualAutoCombo(
       modelId = firstModel?.id;
     }
     if (!modelId) continue; // Skip providers without a model
+
+    // Skip models that the user has hidden in the dashboard
+    const hiddenModels = hiddenModelsMap.get(conn.provider);
+    if (hiddenModels?.has(modelId)) continue;
 
     candidatePool.push({
       provider: conn.provider,
@@ -276,6 +293,41 @@ export async function createVirtualAutoCombo(
     };
   }
 
+  // #4235 Phase B: narrow the pool by the `auto/<category>:<tier>` overlay
+  // (vision/reasoning capability, free/premium model tier).
+  //
+  // Default behavior: when the filter yields zero candidates, return an EMPTY
+  // pool — never silently fall back to the full pool. This makes
+  // `auto/coding:free` actually mean "free tier only" and prevents a paid
+  // expensive model from being picked just because no free provider is
+  // connected. Operators who want the old "never break routing, lose the bias"
+  // behavior can opt back in via the env var below.
+  let effectivePool = candidatePool;
+  const candidateFilter = spec ? buildAutoCandidateFilter(spec.category, spec.tier) : null;
+  if (candidateFilter) {
+    const narrowed = candidatePool.filter((c) =>
+      candidateFilter({ provider: c.provider, model: c.model })
+    );
+    if (narrowed.length > 0) {
+      effectivePool = narrowed;
+    } else if (
+      process.env.OMNIROUTE_AUTO_FREE_FALLBACK_TO_FULL_POOL === "true" ||
+      process.env.OMNIROUTE_AUTO_FREE_FALLBACK_TO_FULL_POOL === "1"
+    ) {
+      // Opt-in legacy behavior: warn loudly, then keep the full pool.
+      log.warn(
+        "AUTO",
+        `auto/${spec?.category ?? ""}${spec?.tier ? `:${spec.tier}` : ""} matched no connected models; falling back to the full pool (OMNIROUTE_AUTO_FREE_FALLBACK_TO_FULL_POOL=true)`
+      );
+    } else {
+      log.warn(
+        "AUTO",
+        `auto/${spec?.category ?? ""}${spec?.tier ? `:${spec.tier}` : ""} matched no connected models; returning an empty pool. Set OMNIROUTE_AUTO_FREE_FALLBACK_TO_FULL_POOL=true to restore the legacy "use full pool" behavior.`
+      );
+      effectivePool = [];
+    }
+  }
+
   let weights: ScoringWeights = { ...DEFAULT_WEIGHTS };
   let explorationRate = 0.05; // Default exploration rate
   let routerStrategy = "lkgp"; // All auto variants use LKGP
@@ -306,8 +358,26 @@ export async function createVirtualAutoCombo(
       break;
   }
 
-  const providerPool = [...new Set(candidatePool.map((c) => c.provider))];
-  const models = candidatePool.map((candidate, index) => ({
+  // #4235 Phase B: category/tier weight overlay. A non-chat category leans
+  // quality-first; the tier then refines toward latency (fast), cost (cheap/floor)
+  // or availability (reliable). free/pro keep the base weights — their bias is the
+  // candidate filter above (free → free-tier models, pro → premium models).
+  if (spec) {
+    if (spec.category && spec.category !== "chat") {
+      weights = { ...MODE_PACKS["quality-first"] };
+    }
+    const weightVariant = tierToWeightVariant(spec.tier);
+    if (weightVariant === "fast") {
+      weights = { ...MODE_PACKS["ship-fast"] };
+    } else if (weightVariant === "cheap") {
+      weights = { ...MODE_PACKS["cost-saver"] };
+    } else if (weightVariant === "reliability") {
+      weights = { ...MODE_PACKS["reliability-first"] };
+    }
+  }
+
+  const providerPool = [...new Set(effectivePool.map((c) => c.provider))];
+  const models = effectivePool.map((candidate, index) => ({
     id: `virtual-auto-${variant || "default"}-${index + 1}-${candidate.provider}`,
     kind: "model" as const,
     model: candidate.modelStr,
@@ -323,7 +393,7 @@ export async function createVirtualAutoCombo(
     routerStrategy,
   };
 
-  const advertisedLimits = computeAdvertisedLimits(candidatePool);
+  const advertisedLimits = computeAdvertisedLimits(effectivePool);
 
   return {
     id: `virtual-auto-${variant || "default"}`,

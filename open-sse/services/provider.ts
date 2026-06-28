@@ -7,6 +7,7 @@ import {
   joinClaudeCodeCompatibleUrl,
 } from "./claudeCodeCompatible.ts";
 import { getClaudeCodeCompatibleRequestDefaults } from "@/lib/providers/requestDefaults";
+import { buildClineHeaders } from "@/shared/utils/clineAuth";
 
 const OPENAI_COMPATIBLE_PREFIX = "openai-compatible-";
 const OPENAI_COMPATIBLE_DEFAULTS = {
@@ -94,6 +95,15 @@ export function detectFormatFromEndpoint(body, endpointPath = "") {
 
   if (/\/messages(?=\/|$)/i.test(path) || /^messages(?=\/|$)/i.test(path)) {
     return "claude";
+  }
+
+  // Antigravity/cloudcode-compatible inbound endpoint (D4): the AgentBridge
+  // proxy forwards the IDE's cloudcode envelope here. Path-based detection
+  // (mirrors /messages → claude) makes the pipeline translate the request
+  // antigravity→openai and the response openai→antigravity, so the IDE gets
+  // a cloudcode reply regardless of which provider actually served it.
+  if (/\/antigravity(?=\/|:|$)/i.test(path) || /^antigravity(?=\/|:|$)/i.test(path)) {
+    return "antigravity";
   }
 
   if (
@@ -338,6 +348,11 @@ export function buildProviderHeaders(provider, credentials, stream = true, body 
     if (!stream) {
       headers["Accept"] = "application/json";
     }
+  } else if (provider === "cline") {
+    // Cline's API requires the bearer token prefixed with `workos:` plus a set
+    // of Cline client-identification headers; plain `Bearer <token>` is rejected
+    // upstream. buildClineHeaders() emits both.
+    Object.assign(headers, buildClineHeaders(credentials.apiKey || credentials.accessToken));
   } else if (entry) {
     // Registry-driven auth
     const authHeader = entry.authHeader || "bearer";

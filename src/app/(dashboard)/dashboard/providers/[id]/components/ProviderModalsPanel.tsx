@@ -23,6 +23,7 @@ import { AdaptaTutorialModal } from "./AdaptaTutorialModal";
 import { ImportCodexAuthModal, ApplyCodexAuthModal } from "./modals/ImportCodexAuthModal";
 import { ImportClaudeAuthModal, ApplyClaudeAuthModal } from "./modals/ImportClaudeAuthModal";
 import { ImportGeminiAuthModal, ApplyGeminiAuthModal } from "./modals/ImportGeminiAuthModal";
+import ImportGrokCliAuthModal from "./modals/ImportGrokCliAuthModal";
 import { type ConnectionRowConnection } from "./ConnectionRow";
 import { type BatchTestResults } from "../hooks/useProviderConnections";
 import { type ImportProgress } from "../hooks/useModelImportHandlers";
@@ -97,6 +98,10 @@ interface ProviderModalsPanelProps {
   setShowEditModal: (open: boolean) => void;
   selectedConnection: ConnectionRowConnection | null;
   handleUpdateConnection: (data: any) => Promise<string | null>;
+  handleCompatibleImportWithProgress: (
+    connectionId: string,
+    mode?: "import" | "sync"
+  ) => Promise<void>;
   // Edit compatible node
   showEditNodeModal: boolean;
   setShowEditNodeModal: (open: boolean) => void;
@@ -119,6 +124,9 @@ interface ProviderModalsPanelProps {
   handleApplyGeminiAuthLocal: (id: string) => Promise<void>;
   importGeminiModalOpen: boolean;
   setImportGeminiModalOpen: (open: boolean) => void;
+  // Grok Build auth
+  importGrokCliModalOpen: boolean;
+  setImportGrokCliModalOpen: (open: boolean) => void;
   // Batch test results
   batchTestResults: BatchTestResults | null;
   setBatchTestResults: (r: BatchTestResults | null) => void;
@@ -186,6 +194,7 @@ export default function ProviderModalsPanel({
   setShowEditModal,
   selectedConnection,
   handleUpdateConnection,
+  handleCompatibleImportWithProgress,
   showEditNodeModal,
   setShowEditNodeModal,
   providerNode,
@@ -204,6 +213,8 @@ export default function ProviderModalsPanel({
   handleApplyGeminiAuthLocal,
   importGeminiModalOpen,
   setImportGeminiModalOpen,
+  importGrokCliModalOpen,
+  setImportGrokCliModalOpen,
   batchTestResults,
   setBatchTestResults,
   emailsVisible,
@@ -316,6 +327,7 @@ export default function ProviderModalsPanel({
           connection={selectedConnection}
           providerId={providerId}
           onSave={handleUpdateConnection}
+          onResyncModels={(id) => handleCompatibleImportWithProgress(id, "sync")}
           onClose={() => setShowEditModal(false)}
         />
       )}
@@ -385,6 +397,16 @@ export default function ProviderModalsPanel({
           onClose={() => setImportGeminiModalOpen(false)}
           onSuccess={() => {
             setImportGeminiModalOpen(false);
+            void fetchConnections();
+          }}
+        />
+      )}
+      {providerId === "grok-cli" && importGrokCliModalOpen && (
+        <ImportGrokCliAuthModal
+          key="import-grok-cli-modal"
+          onClose={() => setImportGrokCliModalOpen(false)}
+          onSuccess={() => {
+            setImportGrokCliModalOpen(false);
             void fetchConnections();
           }}
         />
