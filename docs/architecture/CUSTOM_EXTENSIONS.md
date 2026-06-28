@@ -1,3 +1,7 @@
+---
+title: "Custom Extensions Architecture"
+---
+
 # Custom Extensions Architecture
 
 To prevent merge conflicts when syncing downstream forks with the upstream OmniRoute repository, a modular extension architecture is provided.
