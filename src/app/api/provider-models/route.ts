@@ -97,18 +97,8 @@ export async function POST(request) {
     if (isValidationFailure(validation)) {
       return Response.json({ error: validation.error }, { status: 400 });
     }
-    const {
-      provider,
-      modelId,
-      modelName,
-      source,
-      apiFormat,
-      supportedEndpoints,
-      targetFormat,
-      // #1294: persist the per-model token limits set in the add-model form.
-      max_input_tokens: maxInputTokens,
-      max_output_tokens: maxOutputTokens,
-    } = validation.data;
+    const { provider, modelId, modelName, source, apiFormat, supportedEndpoints, targetFormat } =
+      validation.data;
 
     const model = await addCustomModel(
       provider,
@@ -117,11 +107,7 @@ export async function POST(request) {
       source || "manual",
       apiFormat,
       supportedEndpoints,
-      targetFormat,
-      {
-        ...(maxInputTokens != null ? { inputTokenLimit: maxInputTokens } : {}),
-        ...(maxOutputTokens != null ? { outputTokenLimit: maxOutputTokens } : {}),
-      }
+      targetFormat
     );
     return Response.json({ model });
   } catch (error) {

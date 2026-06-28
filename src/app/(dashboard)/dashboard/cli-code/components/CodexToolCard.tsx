@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { normalizeCodexBaseUrl } from "@/shared/utils/codexBaseUrl";
-import { isApplyDisabled, isResetDisabled } from "./codexButtonState";
 
 export default function CodexToolCard({
   tool,
@@ -715,12 +714,7 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                   variant="primary"
                   size="sm"
                   onClick={handleApplySettings}
-                  disabled={isApplyDisabled({
-                    selectedModel,
-                    selectedApiKey,
-                    cloudEnabled,
-                    apiKeys,
-                  })}
+                  disabled={!selectedApiKey || !selectedModel}
                   loading={applying}
                 >
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>
@@ -730,7 +724,7 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                   variant="outline"
                   size="sm"
                   onClick={handleResetSettings}
-                  disabled={isResetDisabled({ restoring })}
+                  disabled={!codexStatus.hasOmniRoute}
                   loading={restoring}
                 >
                   <span className="material-symbols-outlined text-[14px] mr-1">restore</span>

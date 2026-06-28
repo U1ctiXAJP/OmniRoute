@@ -17,7 +17,6 @@ const EXCLUDED_PATTERNS = [
   /\.md$/, // Documentation
   /\.yaml$/, // Config files
   /\.yml$/, // Config files
-  /(?:^|\/)package(?:-lock)?\.json$/, // Dependency manifests/lockfiles (e.g. Dependabot bumps) — not testable code
 ];
 
 function getArg(name, fallbackValue = "") {

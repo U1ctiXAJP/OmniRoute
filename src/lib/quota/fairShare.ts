@@ -61,19 +61,6 @@ function dimensionKeyString(key: FairShareDimension["key"]): string {
   return `${key.poolId}:${key.unit}:${key.window}`;
 }
 
-const KNOWN_POLICIES: ReadonlySet<Policy> = new Set<Policy>(["hard", "soft", "burst"]);
-
-/**
- * Fail-safe policy normalization. Any value outside the known
- * `hard | soft | burst` set (e.g. a corrupted DB row that reached this engine
- * through an unchecked `row.policy as Policy` cast) is treated as the most
- * restrictive policy, `hard`. This closes a fail-OPEN hole: an unknown policy
- * used to fall through every `switch` case and return a silent `allow`.
- */
-function normalizePolicy(policy: Policy): Policy {
-  return KNOWN_POLICIES.has(policy) ? policy : "hard";
-}
-
 // ---------------------------------------------------------------------------
 // Core algorithm
 // ---------------------------------------------------------------------------
@@ -89,10 +76,6 @@ export function decideFairShare(input: FairShareInput): FairShareDecision {
   if (dimensions.length === 0) {
     return { kind: "allow", reason: "ok" };
   }
-
-  // Fail-safe: an unknown/corrupted policy is treated as `hard` (most
-  // restrictive) so it can never silently bypass fair-share enforcement.
-  const effectivePolicy = normalizePolicy(allocation.policy);
 
   let anyPenalized = false;
 
@@ -114,7 +97,7 @@ export function decideFairShare(input: FairShareInput): FairShareDecision {
     // If the pool's global limit is already reached AND this key's request
     // would exceed it (burst mode without borrow room), block as "global-saturated".
     if (dim.consumedTotal >= dim.limit) {
-      if (effectivePolicy !== "burst") {
+      if (allocation.policy !== "burst") {
         return { kind: "block", reason: "global-saturated" };
       }
       // burst also blocked when no room at all
@@ -125,9 +108,7 @@ export function decideFairShare(input: FairShareInput): FairShareDecision {
 
     if (isStrict) {
       // ── Strict mode ────────────────────────────────────────────────────
-      // effectivePolicy is normalized (unknown → hard), so these cases are
-      // exhaustive and an unknown policy is enforced as hard.
-      switch (effectivePolicy) {
+      switch (allocation.policy) {
         case "hard":
           // Hard: block once consumed >= fair_share
           if (consumed >= fairShare) {
@@ -150,8 +131,7 @@ export function decideFairShare(input: FairShareInput): FairShareDecision {
     } else {
       // ── Generous mode ──────────────────────────────────────────────────
       // There is slack — allow borrowing up to the global limit.
-      // effectivePolicy is normalized (unknown → hard).
-      switch (effectivePolicy) {
+      switch (allocation.policy) {
         case "hard":
           // Hard in generous mode: allow if global limit not reached AND
           // the key is within global limit (which we know because

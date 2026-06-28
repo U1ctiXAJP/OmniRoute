@@ -15,7 +15,6 @@ import { cliModelConfigSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { getApiKeyById } from "@/lib/localDb";
 import { normalizeCodexBaseUrl } from "@/shared/utils/codexBaseUrl";
-import { migrateCodexFeatureFlags } from "@/shared/utils/codexConfig";
 
 const getCodexConfigPath = () => getCliConfigPaths("codex").config;
 const getCodexAuthPath = () => getCliConfigPaths("codex").auth;
@@ -253,9 +252,6 @@ export async function POST(request: Request) {
       /* No existing config */
     }
 
-    // Carry the user's intent forward off the deprecated Codex feature flag (#1327).
-    migrateCodexFeatureFlags(parsed);
-
     // Update only OmniRoute related fields (api_key goes to auth.json, not config.toml)
     parsed._root.model = model;
 
@@ -354,9 +350,6 @@ export async function DELETE(request: Request) {
       }
       throw error;
     }
-
-    // Carry the user's intent forward off the deprecated Codex feature flag (#1327).
-    migrateCodexFeatureFlags(parsed);
 
     // Remove OmniRoute related root fields
     delete parsed._root.openai_base_url;

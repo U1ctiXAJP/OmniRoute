@@ -23,12 +23,7 @@ const BASELINE_PATH = path.resolve(
 );
 const UPDATE = process.argv.includes("--update");
 const CONFIG_PATH = path.join(ROOT, "eslint.complexity.config.mjs");
-// Exported for the gate's own unit test (tests/unit/build/check-complexity.test.ts), which
-// locks the scan scope to the one documented in eslint.complexity.config.mjs `files` and in
-// complexity-baseline.json. The positional paths MUST match that scope (src+open-sse+electron+bin)
-// — ESLint flat config only walks the directories passed here, so a `files` glob for bin/electron
-// is inert unless the directory is also passed as a positional argument.
-export const ESLINT_ARGS = [
+const ESLINT_ARGS = [
   "eslint",
   "--no-config-lookup",
   "--config",
@@ -37,8 +32,6 @@ export const ESLINT_ARGS = [
   "json",
   "src",
   "open-sse",
-  "electron",
-  "bin",
 ];
 
 /** Avalia a contagem atual de violações contra o baseline. */

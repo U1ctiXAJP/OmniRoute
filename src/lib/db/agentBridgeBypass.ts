@@ -3,8 +3,8 @@
  * CRUD + seed for agent_bridge_bypass table.
  */
 
-import { getDbInstance } from "./core.ts";
-import type { AgentBridgeBypassRow } from "./_rowTypes.ts";
+import { getDbInstance } from "./core";
+import type { AgentBridgeBypassRow } from "./_rowTypes";
 
 // SQLite rows have source as plain string
 interface AgentBridgeBypassDbRow {
@@ -24,9 +24,7 @@ function mapRow(row: AgentBridgeBypassDbRow): AgentBridgeBypassRow {
 export function getAllBypassPatterns(): AgentBridgeBypassRow[] {
   const db = getDbInstance();
   const rows = db
-    .prepare(
-      "SELECT pattern, source, created_at FROM agent_bridge_bypass ORDER BY source ASC, pattern ASC"
-    )
+    .prepare("SELECT pattern, source, created_at FROM agent_bridge_bypass ORDER BY source ASC, pattern ASC")
     .all() as AgentBridgeBypassDbRow[];
   return rows.map(mapRow);
 }

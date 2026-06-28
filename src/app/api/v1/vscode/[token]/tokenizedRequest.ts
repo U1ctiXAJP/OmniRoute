@@ -1,5 +1,3 @@
-import { sanitizeVscodeRequest } from "@/app/api/v1/vscode/contextSanitizer";
-
 function inferTokenFromVscodePath(request: Request) {
   try {
     const url = new URL(request.url, "http://localhost");
@@ -49,8 +47,4 @@ export function withPathTokenApiKey(request: Request, token?: string) {
   }
 
   return new Request(request.url, init);
-}
-
-export async function withSanitizedPathTokenApiKey(request: Request, token?: string) {
-  return sanitizeVscodeRequest(withPathTokenApiKey(request, token));
 }

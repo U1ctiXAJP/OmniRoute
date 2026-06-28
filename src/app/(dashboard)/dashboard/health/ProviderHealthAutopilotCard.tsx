@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/shared/components";
 import { getProviderDisplayName } from "@/lib/display/names";
-import { useProviderNodeMap, resolveProviderName } from "@/lib/display/useProviderNodeMap";
 
 type AutopilotAction = {
   type: string;
@@ -100,7 +99,6 @@ function formatConnectionEvidence(issue: AutopilotIssue): string | null {
 }
 
 export default function ProviderHealthAutopilotCard() {
-  const nodeMap = useProviderNodeMap();
   const [report, setReport] = useState<AutopilotReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -243,7 +241,7 @@ export default function ProviderHealthAutopilotCard() {
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h3 className="font-semibold text-text-main">
-                    {resolveProviderName(provider.provider, nodeMap)}
+                    {getProviderDisplayName(provider.provider)}
                   </h3>
                   <p className="text-xs text-text-muted">
                     score {(provider.score * 100).toFixed(0)}% · active{" "}

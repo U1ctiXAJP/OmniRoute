@@ -53,6 +53,7 @@ const CREDITS_EXHAUSTED_KEYWORDS = [
   "minimumcreditamountforusage",
   "minimum credit amount for usage",
   "minimum credit",
+  "resource has been exhausted",
 ];
 
 const SHORT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes

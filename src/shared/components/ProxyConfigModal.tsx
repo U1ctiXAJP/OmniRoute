@@ -4,12 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "./Modal";
 import Button from "./Button";
-import {
-  type ProxyAssignmentItem,
-  normalizeScopeId,
-  isSameScopeAssignment,
-  selectScopeAssignment,
-} from "./proxyAssignment";
 
 const ALL_PROXY_TYPES = [
   { value: "http", label: "HTTP" },
@@ -39,6 +33,12 @@ type ProxyRegistryItem = {
   source?: string | null;
 };
 
+type ProxyAssignmentItem = {
+  proxyId?: string | null;
+  scope?: string | null;
+  scopeId?: string | null;
+};
+
 type ProxyConfigModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -57,6 +57,20 @@ function getAssignmentScope(level: ProxyConfigLevel) {
 
 function getAssignmentScopeId(level: ProxyConfigLevel, levelId?: string) {
   return level === "global" ? null : levelId || null;
+}
+
+function normalizeScopeId(scopeId?: string | null) {
+  return !scopeId || scopeId === "__global__" ? null : scopeId;
+}
+
+function isSameScopeAssignment(
+  assignment: ProxyAssignmentItem,
+  scope: string,
+  scopeId: string | null
+) {
+  return (
+    assignment.scope === scope && normalizeScopeId(assignment.scopeId) === normalizeScopeId(scopeId)
+  );
 }
 
 function getCustomProxyName(level: ProxyConfigLevel, levelId?: string, levelLabel?: string) {
@@ -81,7 +95,7 @@ async function fetchAssignmentForScope(scope: string, scopeId: string | null) {
 
   const payload = await readJson(res);
   const items: ProxyAssignmentItem[] = Array.isArray(payload?.items) ? payload.items : [];
-  return selectScopeAssignment(items, scope, scopeId);
+  return items.find((item) => isSameScopeAssignment(item, scope, scopeId)) || items[0] || null;
 }
 
 async function fetchRegistryProxy(proxyId: string, cachedProxies: ProxyRegistryItem[]) {
@@ -184,7 +198,8 @@ export default function ProxyConfigModal({
         if (assignmentRes.ok) {
           const assignmentPayload = await assignmentRes.json();
           const items = Array.isArray(assignmentPayload?.items) ? assignmentPayload.items : [];
-          const target = selectScopeAssignment(items, scope, scopeId);
+          const target =
+            items.find((item) => isSameScopeAssignment(item, scope, scopeId)) || items[0];
           if (target?.proxyId) {
             setSelectedProxyId(target.proxyId);
             setHasOwnProxy(true);

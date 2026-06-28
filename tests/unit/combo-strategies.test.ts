@@ -12,8 +12,6 @@ process.env.DATA_DIR = TEST_DATA_DIR;
 
 const dbCore = await import("../../src/lib/db/core.ts");
 const { handleComboChat } = await import("../../open-sse/services/combo.ts");
-const { clearAllStickyBindings } =
-  await import("../../open-sse/services/combo/sessionStickiness.ts");
 const { invalidateCodexQuotaCache, registerCodexConnection, registerCodexQuotaFetcher } =
   await import("../../open-sse/services/codexQuotaFetcher.ts");
 const { registerQuotaFetcher } = await import("../../open-sse/services/quotaPreflight.ts");
@@ -173,10 +171,6 @@ async function selectedConnectionFor(
   combo: Record<string, unknown>,
   options: { apiKeyAllowedConnections?: string[] | null } = {}
 ) {
-  // Isolate strategy/round-robin assertions from session stickiness (#5): this helper
-  // reuses the same body, so a sticky binding from a prior call would pin the connection
-  // and break tie-break rotation. Stickiness has its own suite (combo-session-stickiness).
-  clearAllStickyBindings();
   const calls: Array<string | null> = [];
   const response = await handleComboChat({
     body: reqBodyTextArray,
@@ -429,32 +423,30 @@ test("reset-aware strategy avoids accounts near 5h exhaustion", async (t) => {
   assert.equal(await selectedConnectionFor(combo), healthy5h.id);
 });
 
-test("reset-aware strategy rotates similar scores with round-robin tie breaking", async () => {
-  const provider = `tie-provider-${randomUUID()}`;
-  const first = `first-${randomUUID()}`;
-  const second = `second-${randomUUID()}`;
+test("reset-aware strategy rotates similar scores with round-robin tie breaking", async (t) => {
+  const first = { id: `first-${randomUUID()}`, token: `token-first-${randomUUID()}` };
+  const second = {
+    id: `second-${randomUUID()}`,
+    token: `token-second-${randomUUID()}`,
+  };
+  const reset5hAt = Math.floor((Date.now() + 2 * 3600 * 1000) / 1000);
+  const reset7dAt = Math.floor((Date.now() + 3 * 24 * 3600 * 1000) / 1000);
   const quota = {
-    used: 50,
-    total: 100,
-    percentUsed: 0.5,
-    resetAt: "2099-01-01T00:00:00.000Z",
+    rate_limit: {
+      primary_window: { used_percent: 50, reset_at: reset5hAt },
+      secondary_window: { used_percent: 50, reset_at: reset7dAt },
+    },
   };
+  t.after(
+    installCodexQuotaMock({
+      [first.token]: quota,
+      [second.token]: quota,
+    })
+  );
 
-  registerQuotaFetcher(provider, async () => quota);
-
-  const combo = {
-    name: `reset-aware-rr-${randomUUID()}`,
-    strategy: "reset-aware",
-    config: { resetAwareTieBandPercent: 100 },
-    models: [first, second].map((connectionId, index) => ({
-      kind: "model",
-      provider,
-      providerId: provider,
-      model: "balanced-model",
-      connectionId,
-      id: `tie-${index}`,
-    })),
-  };
+  const combo = resetAwareCombo(`reset-aware-rr-${randomUUID()}`, [first, second], {
+    resetAwareTieBandPercent: 100,
+  });
 
   const selections = [
     await selectedConnectionFor(combo),
@@ -462,8 +454,8 @@ test("reset-aware strategy rotates similar scores with round-robin tie breaking"
     await selectedConnectionFor(combo),
   ];
 
-  assert.equal(selections.includes(first), true);
-  assert.equal(selections.includes(second), true);
+  assert.equal(selections.includes(first.id), true);
+  assert.equal(selections.includes(second.id), true);
 });
 
 test("reset-aware strategy uses registered quota fetchers for non-Codex providers", async () => {

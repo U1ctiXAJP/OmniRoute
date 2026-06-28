@@ -1,14 +1,11 @@
 "use client";
 
-import CompressionPanel from "./CompressionPanel";
-import CompressionStylesTile from "../CompressionStylesTile";
+import CompressionSettingsTab from "@/app/(dashboard)/dashboard/settings/components/CompressionSettingsTab";
 
 export default function CompressionSettingsPage() {
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <CompressionPanel />
-      {/* D0: read-only telemetry tile (output-token savings + applied styles) */}
-      <CompressionStylesTile />
+    <div className="p-4">
+      <CompressionSettingsTab />
     </div>
   );
 }

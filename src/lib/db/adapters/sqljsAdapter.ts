@@ -11,15 +11,7 @@ let _sqlJsLib: Awaited<ReturnType<(typeof import("sql.js"))["default"]>> | null 
 function resolveSqlJsWasmPath(): string {
   const candidatePaths = [
     path.join(process.cwd(), "node_modules", "sql.js", "dist", "sql-wasm.wasm"),
-    path.join(
-      process.cwd(),
-      ".next",
-      "standalone",
-      "node_modules",
-      "sql.js",
-      "dist",
-      "sql-wasm.wasm"
-    ),
+    path.join(process.cwd(), ".next", "standalone", "node_modules", "sql.js", "dist", "sql-wasm.wasm"),
   ];
 
   for (const candidatePath of candidatePaths) {

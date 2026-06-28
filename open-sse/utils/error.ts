@@ -487,7 +487,7 @@ export function normalizeCookie(raw: string): string {
  * @returns {string} Formatted error message
  */
 export function formatProviderError(
-  error: { code?: string | number; message?: string; cause?: unknown } | Error,
+  error: { code?: string | number; message?: string } | Error,
   provider: string,
   model: string,
   statusCode?: string | number | null
@@ -495,12 +495,5 @@ export function formatProviderError(
   const providerCode = "code" in error ? error.code : undefined;
   const code = statusCode || providerCode || "FETCH_FAILED";
   const message = error.message || "Unknown error";
-  // Expose low-level cause (e.g. UND_ERR_SOCKET, ECONNRESET, ETIMEDOUT) for diagnosing fetch failures
-  const cause = (error as { cause?: unknown }).cause;
-  const causeObj = cause && typeof cause === "object" ? (cause as Record<string, unknown>) : undefined;
-  const causeCode = typeof causeObj?.code === "string" ? causeObj.code : undefined;
-  const causeMsg = typeof causeObj?.message === "string" ? causeObj.message : undefined;
-  const causeStr =
-    causeCode || causeMsg ? ` (cause: ${[causeCode, causeMsg].filter(Boolean).join(": ")})` : "";
-  return `[${code}]: ${message}${causeStr}`;
+  return `[${code}]: ${message}`;
 }

@@ -55,16 +55,14 @@
   "exclude": [
     "node_modules",
     "open-sse",
-    "dist",
-    "coverage",
-    ".source",
-    ".tmp",
-    ".claude",
-    ".worktrees",
-    "@omniroute",
+    "antigravity-manager-analysis",
+    "app.__qa_backup",
+    "vscode-extension",
+    "vs_ideia",
     "_tasks",
-    "_ideia",
     "_mono_repo",
-    "_references"
+    "_references",
+    "omnirouteCloud",
+    "omnirouteSite"
   ]
 }

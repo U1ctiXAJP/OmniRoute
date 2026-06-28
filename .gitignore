@@ -161,8 +161,6 @@ typescript
 
 # Superpowers plans/specs (internal tooling, not project code)
 docs/superpowers/
-# Superpowers visual-companion brainstorm mockups (ephemeral)
-.superpowers/
 
 # TIA test-impact map — generated at runtime in CI (build-test-impact-map.mjs), never committed (~21MB)
 config/quality/test-impact-map.json
@@ -229,3 +227,14 @@ docs/prompts/AGENT-OWNERSHIP-PROTOCOL.md
 docs/prompts/AGENT-OWNERSHIP-PROTOCOL.omniroute-mim.md
 docs/prompts/AGENT-OWNERSHIP-PROTOCOL.omniroute-mid.md
 omniroute.md
+
+# Downstream fork customizations
+# Add your custom extensions in src/custom-extensions/
+# This folder is intended for your own providers, strategies, and middleware.
+# To prevent merge conflicts, keep your customizations here.
+src/custom-extensions/**/*
+!src/custom-extensions/
+!src/custom-extensions/README.md
+!src/custom-extensions/**/
+!src/custom-extensions/**/.gitkeep
+!src/custom-extensions/**/registry.ts

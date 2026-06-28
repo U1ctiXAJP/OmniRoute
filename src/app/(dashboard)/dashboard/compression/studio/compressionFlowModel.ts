@@ -9,7 +9,7 @@
  */
 
 import type { Node, Edge } from "@xyflow/react";
-import type { CompressionCompletedPayload, CompressionStepPayload } from "@/lib/events/types";
+import type { CompressionCompletedPayload } from "@/lib/events/types";
 
 // ── Engine Step ───────────────────────────────────────────────────────────
 
@@ -21,28 +21,6 @@ export interface CompressionEngineStep {
   techniquesUsed: string[];
   rulesApplied?: string[];
   durationMs?: number;
-  rejected?: boolean;
-  rejectReason?: string;
-}
-
-// ── Diff ─────────────────────────────────────────────────────────────────
-
-export type DiffSegment = { type: "same" | "removed" | "added"; text: string };
-
-// ── Preview API response ──────────────────────────────────────────────────
-
-export interface PreviewResponse {
-  original: string;
-  compressed: string;
-  originalTokens: number;
-  compressedTokens: number;
-  savingsPct: number;
-  mode: string;
-  durationMs?: number;
-  engineBreakdown: CompressionEngineStep[];
-  diff: DiffSegment[];
-  preservedBlocks: Array<{ kind: string; preview: string }>;
-  ruleRemovals: string[];
 }
 
 // ── Run Model ─────────────────────────────────────────────────────────────
@@ -56,23 +34,6 @@ export interface CompressionRunModel {
   savingsPercent: number;
   steps: CompressionEngineStep[];
   timestamp: number;
-  diff?: DiffSegment[];
-}
-
-// ── previewToRunModel ─────────────────────────────────────────────────────
-
-export function previewToRunModel(res: PreviewResponse, label: string): CompressionRunModel {
-  return {
-    requestId: `preview-${label}`,
-    comboId: null,
-    mode: res.mode,
-    originalTokens: res.originalTokens,
-    compressedTokens: res.compressedTokens,
-    savingsPercent: res.savingsPct,
-    steps: res.engineBreakdown,
-    timestamp: 0,
-    diff: res.diff,
-  };
 }
 
 // ── compressionEventToModel ───────────────────────────────────────────────
@@ -101,67 +62,6 @@ export function compressionEventToModel(payload: CompressionCompletedPayload): C
     steps,
     timestamp: payload.timestamp,
   };
-}
-
-// ── Live step streaming (F3.3) ────────────────────────────────────────────
-
-/**
- * Build a partial `CompressionRunModel` from the per-engine `compression.step` events received
- * so far. Run-level totals span the whole pipeline: input = first step's input, output = last
- * step's output. Used to render the live in-flight run before `compression.completed` arrives.
- */
-export function stepEventsToRunModel(steps: CompressionStepPayload[]): CompressionRunModel {
-  const first = steps[0];
-  const last = steps[steps.length - 1];
-  const originalTokens = first?.originalTokens ?? 0;
-  const compressedTokens = last?.compressedTokens ?? originalTokens;
-  const savingsPercent =
-    originalTokens > 0
-      ? Math.round(((originalTokens - compressedTokens) / originalTokens) * 100)
-      : 0;
-  return {
-    requestId: first?.requestId ?? "",
-    comboId: first?.comboId ?? null,
-    mode: first?.mode ?? "stacked",
-    originalTokens,
-    compressedTokens,
-    savingsPercent,
-    steps: steps.map((s) => ({
-      engine: s.engine,
-      originalTokens: s.originalTokens,
-      compressedTokens: s.compressedTokens,
-      savingsPercent: s.savingsPercent,
-      techniquesUsed: s.techniquesUsed ?? [],
-      rulesApplied: s.rulesApplied,
-      durationMs: s.durationMs,
-    })),
-    timestamp: last?.timestamp ?? 0,
-  };
-}
-
-/** A single in-flight (still-streaming) compression run, keyed by requestId. */
-export interface InFlightCompressionRun {
-  requestId: string;
-  steps: CompressionStepPayload[];
-}
-
-/** Append a step to the in-flight run; a new requestId starts a fresh run (latest wins). */
-export function appendInFlightStep(
-  state: InFlightCompressionRun | null,
-  step: CompressionStepPayload
-): InFlightCompressionRun {
-  if (state && state.requestId === step.requestId) {
-    return { requestId: state.requestId, steps: [...state.steps, step] };
-  }
-  return { requestId: step.requestId, steps: [step] };
-}
-
-/** Clear the in-flight run when its run completes (otherwise leave it untouched). */
-export function clearInFlightOnComplete(
-  state: InFlightCompressionRun | null,
-  completedRequestId: string
-): InFlightCompressionRun | null {
-  return state && state.requestId === completedRequestId ? null : state;
 }
 
 // ── compressionRunToFlow ──────────────────────────────────────────────────
