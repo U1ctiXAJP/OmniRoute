@@ -168,6 +168,7 @@ export const AUDIO_SPEECH_PROVIDERS: Record<string, AudioProvider> = {
     authHeader: "bearer",
     format: "vertex-gemini-tts",
     models: [
+      { id: "gemini-3.1-flash-tts-preview", name: "Gemini 3.1 Flash TTS (Vertex)" },
       { id: "gemini-2.5-flash-preview-tts", name: "Gemini 2.5 Flash TTS (Vertex)" },
       { id: "gemini-2.5-pro-preview-tts", name: "Gemini 2.5 Pro TTS (Vertex)" },
     ],
@@ -390,6 +391,7 @@ export const AUDIO_SPEECH_PROVIDERS: Record<string, AudioProvider> = {
       { id: "mimo-v2.5-tts", name: "MiMo V2.5 TTS" },
       { id: "mimo-v2.5-tts-voicedesign", name: "MiMo V2.5 Voice Design" },
       { id: "mimo-v2.5-tts-voiceclone", name: "MiMo V2.5 Voice Clone" },
+      { id: "mimo-v2-tts", name: "MiMo V2 TTS" },
     ],
   },
 };

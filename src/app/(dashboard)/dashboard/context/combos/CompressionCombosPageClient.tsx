@@ -8,6 +8,7 @@
 // matching `EngineConfigPage` / `CompressionHub`, both of which hydrate cleanly.
 
 import { useEffect, useState } from "react";
+import { STACKED_PIPELINE_ENGINE_INTENSITIES } from "@/shared/validation/compressionConfigSchemas";
 import CompressionHub from "./CompressionHub";
 
 type PipelineStep = { engine: string; intensity?: string };
@@ -29,17 +30,9 @@ const EMPTY_PIPELINE: PipelineStep[] = [
   { engine: "caveman", intensity: "full" },
 ];
 
-const ENGINE_INTENSITIES: Record<string, string[]> = {
-  rtk: ["minimal", "standard", "aggressive"],
-  caveman: ["lite", "full", "ultra"],
-  lite: ["lite"],
-  aggressive: ["standard"],
-  ultra: ["ultra"],
-  headroom: ["standard"],
-  "session-dedup": ["standard"],
-  ccr: ["standard"],
-  llmlingua: ["standard"],
-};
+// Engine list is sourced from the API schema so the dropdown can never offer an engine
+// the `PUT /api/context/combos/[id]` route would reject with HTTP 400 (#4955).
+const ENGINE_INTENSITIES: Record<string, readonly string[]> = STACKED_PIPELINE_ENGINE_INTENSITIES;
 
 function NamedCombosManager() {
   const [combos, setCombos] = useState<CompressionCombo[]>([]);
@@ -54,6 +47,8 @@ function NamedCombosManager() {
   const [outputModeIntensity, setOutputModeIntensity] = useState("full");
   const [assignmentIds, setAssignmentIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [activeComboId, setActiveComboId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = () => {
     fetch("/api/context/combos")
@@ -72,6 +67,10 @@ function NamedCombosManager() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setLanguagePacks(Array.isArray(data?.packs) ? data.packs : []))
       .catch(() => {});
+    fetch("/api/settings/compression")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setActiveComboId(data?.activeComboId ?? null))
+      .catch(() => {});
   }, []);
 
   const resetForm = () => {
@@ -83,6 +82,7 @@ function NamedCombosManager() {
     setOutputMode(false);
     setOutputModeIntensity("full");
     setAssignmentIds([]);
+    setError(null);
   };
 
   const loadAssignments = async (id: string) => {
@@ -107,7 +107,15 @@ function NamedCombosManager() {
 
   const saveCombo = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setError("Enter a combo name before saving.");
+      return;
+    }
+    if (pipeline.length === 0) {
+      setError("Add at least one pipeline step before saving.");
+      return;
+    }
+    setError(null);
     setSaving(true);
     try {
       const payload = {
@@ -126,7 +134,11 @@ function NamedCombosManager() {
           body: JSON.stringify(payload),
         }
       );
-      if (!res.ok) return;
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error || `Failed to save combo (HTTP ${res.status}).`);
+        return;
+      }
       const combo = await res.json();
       await fetch(`/api/context/combos/${combo.id}/assignments`, {
         method: "PUT",
@@ -143,15 +155,6 @@ function NamedCombosManager() {
   const deleteCombo = async (combo: CompressionCombo) => {
     if (!confirm(`Delete combo "${combo.name}"?`)) return;
     const res = await fetch(`/api/context/combos/${combo.id}`, { method: "DELETE" });
-    if (res.ok) refresh();
-  };
-
-  const setDefault = async (id: string) => {
-    const res = await fetch(`/api/context/combos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDefault: true }),
-    });
     if (res.ok) refresh();
   };
 
@@ -319,6 +322,12 @@ function NamedCombosManager() {
           </div>
         </div>
 
+        {error && (
+          <p className="mt-4 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
+
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={saveCombo}
@@ -346,9 +355,12 @@ function NamedCombosManager() {
                 <h3 className="truncate text-base font-semibold text-text-main">{combo.name}</h3>
                 <p className="mt-1 text-sm text-text-muted">{combo.description}</p>
               </div>
-              {combo.isDefault && (
-                <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                  Default
+              {combo.id === activeComboId && (
+                <span
+                  data-testid={`active-badge-${combo.id}`}
+                  className="rounded-full bg-green-500/10 px-2 py-1 text-xs font-medium text-green-500"
+                >
+                  ● Active
                 </span>
               )}
             </div>
@@ -373,14 +385,6 @@ function NamedCombosManager() {
               >
                 Edit
               </button>
-              {!combo.isDefault && (
-                <button
-                  onClick={() => setDefault(combo.id)}
-                  className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-main"
-                >
-                  Set as default
-                </button>
-              )}
               {!combo.isDefault && (
                 <button
                   onClick={() => deleteCombo(combo)}
