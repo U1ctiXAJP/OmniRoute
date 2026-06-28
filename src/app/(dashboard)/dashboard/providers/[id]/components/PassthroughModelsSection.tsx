@@ -30,7 +30,6 @@ import {
   type CompatByProtocolMap,
 } from "../providerPageHelpers";
 import { ModelVisibilityToolbar } from "./ModelRow";
-import { sortModelsFreeFirst, isFreeModel } from "@/shared/utils/freeModels";
 import PassthroughModelRow from "./PassthroughModelRow";
 
 // ---------------------------------------------------------------------------
@@ -126,8 +125,6 @@ export default function PassthroughModelsSection({
     autoHideFailedProp !== undefined ? autoHideFailedProp : localAutoHideFailed;
   const setAutoHideFailed = onAutoHideFailedChange ?? setLocalAutoHideFailed;
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | "visible" | "hidden">("all");
-  const [freeFilter, setFreeFilter] = useState<"all" | "free" | "paid">("all");
-  const [sortFreeFirst, setSortFreeFirst] = useState(false);
   const notify = useNotificationStore();
   const customModelMap = useMemo(() => buildCompatMap(customModels), [customModels]);
 
@@ -244,8 +241,7 @@ export default function PassthroughModelsSection({
         isFree:
           Boolean((model as any).free) ||
           model.id.endsWith(":free") ||
-          /\bgr[aá]tis\b|\bfree\b/i.test(model.name || "") ||
-          isFreeModel(providerId, { id: model.id }),
+          /\bgr[aá]tis\b|\bfree\b/i.test(model.name || ""),
         isHidden: isModelHidden(model.id),
       });
       seenModelIds.add(model.id);
@@ -276,8 +272,7 @@ export default function PassthroughModelsSection({
         isFree:
           modelId.endsWith(":free") ||
           Boolean((customModel as any)?.free) ||
-          /\bgr[aá]tis\b|\bfree\b/i.test(customModel?.name || alias || "") ||
-          isFreeModel(providerId, { id: modelId }),
+          /\bgr[aá]tis\b|\bfree\b/i.test(customModel?.name || alias || ""),
         isHidden: isModelHidden(modelId),
       });
       seenModelIds.add(modelId);
@@ -291,7 +286,6 @@ export default function PassthroughModelsSection({
     isModelHidden,
     providerAlias,
     providerAliases,
-    providerId,
   ]);
 
   const filteredModels = allModels.filter((model) => {
@@ -309,14 +303,8 @@ export default function PassthroughModelsSection({
           ? !model.isHidden
           : model.isHidden;
 
-    const matchesFreeFilter =
-      freeFilter === "all" ? true : freeFilter === "free" ? model.isFree : !model.isFree;
-
-    return matchesQuery && matchesVisibility && matchesFreeFilter;
+    return matchesQuery && matchesVisibility;
   });
-  const displayModels = sortFreeFirst
-    ? sortModelsFreeFirst(filteredModels, { isFree: (m) => m.isFree, key: (m) => m.modelId })
-    : filteredModels;
   const activeCount = allModels.filter((model) => !model.isHidden).length;
 
   // Generate default alias from modelId (last part after /)
@@ -401,25 +389,19 @@ export default function PassthroughModelsSection({
             onVisibilityFilterChange={setVisibilityFilter}
             autoHideFailed={autoHideFailed}
             onAutoHideFailedChange={setAutoHideFailed}
-            freeFilter={freeFilter}
-            onFreeFilterChange={setFreeFilter}
-            sortFreeFirst={sortFreeFirst}
-            onSortFreeFirstChange={setSortFreeFirst}
           />
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            {displayModels.map(({ modelId, fullModel, alias, isHidden, source, isFree }) => (
+            {filteredModels.map(({ modelId, fullModel, alias, isHidden, source, isFree }) => (
               <PassthroughModelRow
                 key={fullModel as string}
                 modelId={modelId}
                 fullModel={fullModel}
-                alias={alias}
                 source={source}
                 isFree={isFree}
                 isHidden={isHidden}
                 copied={copied}
                 onCopy={onCopy}
                 onDeleteAlias={source === "alias" && alias ? () => onDeleteAlias(alias) : undefined}
-                onSetAlias={(a) => onSetAlias(modelId, a)}
                 t={t}
                 showDeveloperToggle
                 effectiveModelNormalize={effectiveModelNormalize}

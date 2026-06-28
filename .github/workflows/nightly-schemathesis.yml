@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: actions/setup-node@v6
@@ -33,7 +33,7 @@ jobs:
             if curl -sf http://localhost:20128/api/monitoring/health >/dev/null; then echo "server up"; break; fi
             sleep 2
           done
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Install schemathesis
         run: pip install schemathesis
@@ -45,7 +45,7 @@ jobs:
         # PROVE the contract is fuzzable and surface regressions, not to gate the build.
         continue-on-error: true
         run: |
-          schemathesis run docs/openapi.yaml \
+          schemathesis run docs/reference/openapi.yaml \
             --url http://localhost:20128 \
             --max-examples 20 \
             --workers 4 \

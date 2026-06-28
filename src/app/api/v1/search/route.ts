@@ -177,10 +177,9 @@ async function postHandler(request: Request, context: unknown) {
     }
 
     if (!credentials) {
-      // Sort by cost to find cheapest with credentials (fallback-only providers
-      // are reached via the last-resort step below, never the primary pick).
+      // Sort by cost to find cheapest with credentials
       const sortedIds = Object.values(SEARCH_PROVIDERS)
-        .filter((provider) => !provider.fallbackOnly && supportsSearchType(provider, body.search_type))
+        .filter((provider) => supportsSearchType(provider, body.search_type))
         .sort((a, b) => a.costPerQuery - b.costPerQuery)
         .map((p) => p.id);
 
@@ -213,10 +212,9 @@ async function postHandler(request: Request, context: unknown) {
       );
     }
 
-    // Find alternate for failover — must bind credentials to the matched provider.
-    // Exclude fallback-only providers; they are only used by the last-resort step.
+    // Find alternate for failover — must bind credentials to the matched provider
     const otherIds = Object.values(SEARCH_PROVIDERS)
-      .filter((provider) => !provider.fallbackOnly && supportsSearchType(provider, body.search_type))
+      .filter((provider) => supportsSearchType(provider, body.search_type))
       .sort((a, b) => a.costPerQuery - b.costPerQuery)
       .map((p) => p.id)
       .filter((id) => id !== providerConfig.id);
@@ -229,22 +227,6 @@ async function postHandler(request: Request, context: unknown) {
         alternateProviderId = pid;
         alternateCredentials = creds;
         break;
-      }
-    }
-
-    // Last-resort: guarantee a free no-key fallback (e.g. duckduckgo-free) as the
-    // failover so out-of-the-box search still works when no credentialed provider
-    // is configured. Only used when no real alternate was found above.
-    if (!alternateProviderId) {
-      for (const provider of Object.values(SEARCH_PROVIDERS)) {
-        if (!provider.fallbackOnly || provider.id === providerConfig.id) continue;
-        if (!supportsSearchType(provider, body.search_type)) continue;
-        const fallbackCreds = await resolveSearchExecutionCredentials(provider);
-        if (fallbackCreds && !isAllRateLimitedCredentials(fallbackCreds)) {
-          alternateProviderId = provider.id;
-          alternateCredentials = fallbackCreds;
-          break;
-        }
       }
     }
   }

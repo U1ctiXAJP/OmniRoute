@@ -69,7 +69,7 @@ const rtkFilterPreserveSchema = z
   })
   .strict();
 
-const rtkFilterPackSchema = z
+export const rtkFilterPackSchema = z
   .object({
     id: z.string().min(1),
     label: z.string().min(1),
@@ -78,9 +78,7 @@ const rtkFilterPackSchema = z
     priority: z.number().int().min(0).max(100).default(50),
     match: rtkFilterMatchSchema,
     rules: rtkFilterRulesSchema.default({} as unknown as z.infer<typeof rtkFilterRulesSchema>),
-    preserve: rtkFilterPreserveSchema.default(
-      {} as unknown as z.infer<typeof rtkFilterPreserveSchema>
-    ),
+    preserve: rtkFilterPreserveSchema.default({} as unknown as z.infer<typeof rtkFilterPreserveSchema>),
     tests: z.array(rtkInlineTestSchema).default([]),
   })
   .strict();
@@ -112,7 +110,7 @@ const legacyRtkFilterSchema = z
 
 export const rtkFilterSchema = z.union([rtkFilterPackSchema, legacyRtkFilterSchema]);
 
-type RtkFilterPack = z.infer<typeof rtkFilterPackSchema>;
+export type RtkFilterPack = z.infer<typeof rtkFilterPackSchema>;
 
 export interface RtkFilterDefinition {
   id: string;
@@ -144,37 +142,14 @@ function isCanonicalFilter(value: z.infer<typeof rtkFilterSchema>): value is Rtk
   return "label" in value && "match" in value && "rules" in value;
 }
 
-/**
- * Conservative, dependency-free ReDoS guard. Custom RTK filters (DATA_DIR/rtk/filters.json)
- * carry user-supplied regex strings that are compiled and run against untrusted tool output;
- * a nested unbounded quantifier ((a+)+, (a*)*, ([a-z]+)+, (a+|b)+ …) causes catastrophic
- * backtracking. This flags the common single-group nested-quantifier shapes so the loader
- * never compiles them. Heuristic by design — a full analysis would use `safe-regex` (not
- * installable in this symlinked worktree); it is itself linear (no nested quantifier).
- */
-export function isReDoSProne(pattern: string): boolean {
-  return /\([^()]*(?:[+*]|\{\d+,\})[^()]*\)\s*(?:[+*]|\{\d+,\})/.test(pattern);
-}
-
-function dropReDoSProne(patterns: string[]): string[] {
-  return patterns.filter((p) => !isReDoSProne(p));
-}
-
 export function validateRtkFilter(value: unknown): RtkFilterDefinition {
   const parsed = rtkFilterSchema.parse(value);
   if (!isCanonicalFilter(parsed)) {
-    const collapse = dropReDoSProne(parsed.collapsePatterns);
     return {
       ...parsed,
-      stripPatterns: dropReDoSProne(parsed.stripPatterns),
-      keepPatterns: dropReDoSProne(parsed.keepPatterns),
-      priorityPatterns: dropReDoSProne(parsed.priorityPatterns),
-      collapsePatterns: collapse,
-      replace: parsed.replace.filter((r) => !isReDoSProne(r.pattern)),
-      matchOutput: parsed.matchOutput.filter((r) => !isReDoSProne(r.pattern)),
       commandPatterns: [],
       matchPatterns: [],
-      deduplicate: collapse.length > 0,
+      deduplicate: parsed.collapsePatterns.length > 0,
     };
   }
 
@@ -184,17 +159,17 @@ export function validateRtkFilter(value: unknown): RtkFilterDefinition {
     name: parsed.label,
     description: parsed.description,
     commandTypes: parsed.match.outputTypes,
-    commandPatterns: dropReDoSProne(parsed.match.commands),
-    matchPatterns: dropReDoSProne(parsed.match.patterns),
+    commandPatterns: parsed.match.commands,
+    matchPatterns: parsed.match.patterns,
     category: parsed.category,
     priority: parsed.priority,
-    stripPatterns: dropReDoSProne(parsed.rules.dropPatterns),
-    keepPatterns: dropReDoSProne(parsed.rules.includePatterns),
-    priorityPatterns: dropReDoSProne(preservePatterns),
-    collapsePatterns: dropReDoSProne(parsed.rules.collapsePatterns),
+    stripPatterns: parsed.rules.dropPatterns,
+    keepPatterns: parsed.rules.includePatterns,
+    priorityPatterns: preservePatterns,
+    collapsePatterns: parsed.rules.collapsePatterns,
     stripAnsi: parsed.rules.stripAnsi,
-    replace: parsed.rules.replace.filter((r) => !isReDoSProne(r.pattern)),
-    matchOutput: parsed.rules.matchOutput.filter((r) => !isReDoSProne(r.pattern)),
+    replace: parsed.rules.replace,
+    matchOutput: parsed.rules.matchOutput,
     truncateLineAt: parsed.rules.truncateLineAt,
     onEmpty: parsed.rules.onEmpty,
     filterStderr: parsed.rules.filterStderr,

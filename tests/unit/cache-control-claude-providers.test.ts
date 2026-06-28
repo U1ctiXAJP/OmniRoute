@@ -22,11 +22,8 @@ describe("Cache Control Policy - Claude Protocol Providers", () => {
     assert.equal(providerSupportsCaching("minimax-cn", "claude"), true);
     assert.equal(providerSupportsCaching("kimi-coding", "claude"), true);
 
-    // #3955 — OpenAI / Codex use automatic prefix caching (no cache_control needed).
-    assert.equal(providerSupportsCaching("openai", "openai"), true);
-    assert.equal(providerSupportsCaching("codex", "openai"), true);
-
-    // Non-caching providers
+    // Non-Claude providers without caching support
+    assert.equal(providerSupportsCaching("openai", "openai"), false);
     assert.equal(providerSupportsCaching("gemini", "gemini"), false);
   });
 
@@ -129,13 +126,12 @@ describe("Cache Control Policy - Claude Protocol Providers", () => {
   test("shouldPreserveCacheControl does not preserve for non-Claude format providers", () => {
     const claudeCodeUA = "Claude-Code/1.0.0";
 
-    // gemini is non-Claude-format and has no prompt caching (openai/codex now do, #3955).
     assert.equal(
       shouldPreserveCacheControl({
         userAgent: claudeCodeUA,
         isCombo: false,
-        targetProvider: "gemini",
-        targetFormat: "gemini",
+        targetProvider: "openai",
+        targetFormat: "openai",
         settings: { alwaysPreserveClientCache: "auto" },
       }),
       false

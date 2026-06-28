@@ -34,7 +34,7 @@ interface ToolParseCandidate {
   requireRequestedTool: boolean;
 }
 
-export interface RequestedToolName {
+interface RequestedToolName {
   original: string;
   normalized: string;
 }
@@ -45,7 +45,7 @@ function toRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-export function getRequestedToolNames(tools: unknown): RequestedToolName[] {
+function getRequestedToolNames(tools: unknown): RequestedToolName[] {
   if (!Array.isArray(tools)) return [];
   const names: RequestedToolName[] = [];
   const seen = new Set<string>();
@@ -102,10 +102,7 @@ function scoreToolName(emitted: string, requested: RequestedToolName): number {
   return similarity >= 0.72 ? similarity : 0;
 }
 
-export function resolveRequestedToolName(
-  emitted: string,
-  requestedTools: RequestedToolName[]
-): string | null {
+function resolveRequestedToolName(emitted: string, requestedTools: RequestedToolName[]): string | null {
   if (requestedTools.length === 0) return emitted;
 
   let best: { name: string; score: number } | null = null;
@@ -230,7 +227,7 @@ function normalizeLooseJson(value: string): string {
     .replace(/,\s*([}\]])/g, "$1");
 }
 
-export function parseLooseJsonObject(raw: string): Record<string, unknown> | null {
+function parseLooseJsonObject(raw: string): Record<string, unknown> | null {
   const trimmed = stripCodeFence(raw);
   for (const candidate of [trimmed, normalizeLooseJson(trimmed)]) {
     try {
@@ -285,10 +282,7 @@ function findBareJsonCandidates(text: string): ToolParseCandidate[] {
       depth -= 1;
       if (depth === 0 && start >= 0) {
         const raw = text.slice(start, i + 1);
-        if (
-          /[{,]\s*["']?(name|command)["']?\s*:/i.test(raw) &&
-          /[{,]\s*["']?arguments["']?\s*:/i.test(raw)
-        ) {
+        if (/[{,]\s*["']?(name|command)["']?\s*:/i.test(raw) && /[{,]\s*["']?arguments["']?\s*:/i.test(raw)) {
           candidates.push({ raw, start, end: i + 1, requireRequestedTool: true });
         }
         start = -1;
@@ -299,14 +293,11 @@ function findBareJsonCandidates(text: string): ToolParseCandidate[] {
   return candidates;
 }
 
-function rangesOverlap(
-  a: { start: number; end: number },
-  b: { start: number; end: number }
-): boolean {
+function rangesOverlap(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
   return a.start < b.end && b.start < a.end;
 }
 
-export function stripRanges(text: string, ranges: Array<{ start: number; end: number }>): string {
+function stripRanges(text: string, ranges: Array<{ start: number; end: number }>): string {
   let content = text;
   const sorted = [...ranges].sort((a, b) => b.start - a.start);
   for (const range of sorted) {
@@ -317,18 +308,13 @@ export function stripRanges(text: string, ranges: Array<{ start: number; end: nu
     const afterOnLine = content.slice(range.end, lineEnd);
     const removeWholeLine = beforeOnLine.trim() === "" && afterOnLine.trim() === "";
     const start = removeWholeLine ? lineStart : range.start;
-    const end =
-      removeWholeLine && nextLineBreak !== -1
-        ? nextLineBreak + 1
-        : removeWholeLine
-          ? lineEnd
-          : range.end;
+    const end = removeWholeLine && nextLineBreak !== -1 ? nextLineBreak + 1 : removeWholeLine ? lineEnd : range.end;
     content = `${content.slice(0, start)}${content.slice(end)}`;
   }
   return content.replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export function toArgumentsString(value: unknown): string {
+function toArgumentsString(value: unknown): string {
   if (value === undefined) return "{}";
   if (typeof value === "string") {
     const parsed = parseLooseJsonObject(value);
@@ -360,9 +346,7 @@ export function serializeToolsToPrompt(tools: unknown): string {
     } catch {
       params = "";
     }
-    lines.push(
-      `- ${fn.name}${desc ? `: ${desc}` : ""}${params ? `\n  parameters: ${params}` : ""}`
-    );
+    lines.push(`- ${fn.name}${desc ? `: ${desc}` : ""}${params ? `\n  parameters: ${params}` : ""}`);
   }
 
   if (lines.length === 0) return "";
@@ -487,7 +471,7 @@ interface ToolPrepResult {
  */
 export function prepareToolMessages(
   bodyObj: Record<string, unknown>,
-  messages: Array<{ role: string; content: unknown }>
+  messages: Array<{ role: string; content: unknown }>,
 ): ToolPrepResult {
   const requestedTools = bodyObj.tools;
   const hasTools = Array.isArray(requestedTools) && requestedTools.length > 0;
@@ -516,13 +500,9 @@ interface ToolCompletionResult {
 export function buildToolAwareResult(
   rawContent: string,
   requestedTools: unknown,
-  idSeed = "call"
+  idSeed = "call",
 ): ToolCompletionResult {
-  const { content, toolCalls } = parseToolCallsFromText(
-    rawContent,
-    `${idSeed}-${Date.now()}`,
-    requestedTools
-  );
+  const { content, toolCalls } = parseToolCallsFromText(rawContent, `${idSeed}-${Date.now()}`, requestedTools);
   return {
     content,
     toolCalls,

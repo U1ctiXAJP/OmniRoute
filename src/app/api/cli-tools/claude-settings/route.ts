@@ -15,18 +15,22 @@ import { saveCliToolLastConfigured, deleteCliToolLastConfigured } from "@/lib/db
 import { cliSettingsEnvSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { getApiKeyById } from "@/lib/localDb";
-import { readJsoncConfig } from "../_lib/jsoncConfig";
 
 // Get claude settings path based on OS
 const getClaudeSettingsPath = () => getCliPrimaryConfigPath("claude");
 
-// Read current settings.
-// Ported from upstream decolua/9router@6c10edf8: tolerate JSONC (trailing
-// commas) and return null on any parse error so the dashboard renders
-// "installed but not configured" instead of a 500 misread as "not installed".
+// Read current settings
 const readSettings = async () => {
-  const settingsPath = getClaudeSettingsPath();
-  return readJsoncConfig(settingsPath);
+  try {
+    const settingsPath = getClaudeSettingsPath();
+    const content = await fs.readFile(settingsPath, "utf-8");
+    return JSON.parse(content);
+  } catch (error: any) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
 };
 
 // GET - Check claude CLI and read current settings

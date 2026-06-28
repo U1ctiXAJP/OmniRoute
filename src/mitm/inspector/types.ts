@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-export type CaptureSource =
-  | "agent-bridge"
-  | "custom-host"
-  | "http-proxy"
-  | "system-proxy"
-  | "tproxy";
+export type CaptureSource = "agent-bridge" | "custom-host" | "http-proxy" | "system-proxy";
 export type DetectedKind = "llm" | "app" | "unknown";
 
 export interface InterceptedRequest {
@@ -40,7 +35,7 @@ export interface InterceptedRequest {
 
 export const InterceptedRequestSchema = z.object({
   id: z.string().uuid(),
-  source: z.enum(["agent-bridge", "custom-host", "http-proxy", "system-proxy", "tproxy"]),
+  source: z.enum(["agent-bridge", "custom-host", "http-proxy", "system-proxy"]),
   agent: z.string().optional(),
   timestamp: z.string().datetime(),
   method: z.string(),

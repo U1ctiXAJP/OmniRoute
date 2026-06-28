@@ -4,38 +4,33 @@ import { useTranslations } from "next-intl";
 import { Toggle } from "@/shared/components";
 
 type CcCompatibleRequestDefaultsFieldsProps = {
-  values: {
-    ccCompatibleContext1m: boolean;
-    ccCompatibleRedactThinking: boolean;
-    ccCompatibleSummarizeThinking: boolean;
-  };
-  onChange: (patch: Partial<CcCompatibleRequestDefaultsFieldsProps["values"]>) => void;
+  context1m: boolean;
+  redactThinking: boolean;
+  onContext1mChange: (checked: boolean) => void;
+  onRedactThinkingChange: (checked: boolean) => void;
 };
 
-export default function CcCompatibleRequestDefaultsFields(
-  props: CcCompatibleRequestDefaultsFieldsProps
-) {
+export default function CcCompatibleRequestDefaultsFields({
+  context1m,
+  redactThinking,
+  onContext1mChange,
+  onRedactThinkingChange,
+}: CcCompatibleRequestDefaultsFieldsProps) {
   const t = useTranslations("providers");
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border/50 bg-surface/20 p-4">
       <Toggle
-        checked={props.values.ccCompatibleContext1m}
-        onChange={(checked) => props.onChange({ ccCompatibleContext1m: checked })}
+        checked={context1m}
+        onChange={onContext1mChange}
         label={t("ccCompatibleContext1mLabel")}
         description={t("ccCompatibleContext1mDescription")}
       />
       <Toggle
-        checked={props.values.ccCompatibleRedactThinking}
-        onChange={(checked) => props.onChange({ ccCompatibleRedactThinking: checked })}
+        checked={redactThinking}
+        onChange={onRedactThinkingChange}
         label={t("ccCompatibleRedactThinkingLabel")}
         description={t("ccCompatibleRedactThinkingDescription")}
-      />
-      <Toggle
-        checked={props.values.ccCompatibleSummarizeThinking}
-        onChange={(checked) => props.onChange({ ccCompatibleSummarizeThinking: checked })}
-        label={t("ccCompatibleSummarizeThinkingLabel")}
-        description={t("ccCompatibleSummarizeThinkingDescription")}
       />
     </div>
   );

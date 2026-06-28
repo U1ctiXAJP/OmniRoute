@@ -5,15 +5,11 @@ import { sessionDedupEngine } from "./session-dedup/index.ts";
 import { headroomEngine } from "./headroom/index.ts";
 import { ccrEngine } from "./ccr/index.ts";
 import { llmlinguaEngine } from "./llmlingua/index.ts";
-import { ionizerEngine } from "./ionizer/index.ts";
 
 let registered = false;
 
 export function registerBuiltinCompressionEngines(): void {
-  // The `registered` latch is a fast-path to skip the loop, but it must not block
-  // re-registration after clearCompressionEngineRegistry() empties the map (tests do this).
-  // Re-run when the registry was cleared so the builtins are restored.
-  if (registered && getCompressionEngine(liteEngine.id)) return;
+  if (registered) return;
   registered = true;
 
   if (!getCompressionEngine(liteEngine.id)) registerCompressionEngine(liteEngine);
@@ -27,7 +23,6 @@ export function registerBuiltinCompressionEngines(): void {
     { id: "headroom", engine: headroomEngine },
     { id: "ccr", engine: ccrEngine },
     { id: "llmlingua", engine: llmlinguaEngine },
-    { id: "ionizer", engine: ionizerEngine },
   ];
 
   for (const { id, engine } of engines) {

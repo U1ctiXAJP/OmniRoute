@@ -122,8 +122,6 @@ export async function recordStreamingConsumption(
       apiKeyId,
       connectionId,
       provider: resolvedProvider,
-      // Per-(key,model) cap accounting on streaming traffic — same resolved model id.
-      model: model || undefined,
       cost: buildConsumptionCost(streamUsage, estimatedCost),
     },
     deps.log

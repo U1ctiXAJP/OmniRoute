@@ -11,7 +11,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   jules: "Jules",
   devin: "Devin",
   "codex-cloud": "Codex Cloud",
-  "cursor-cloud": "Cursor Cloud",
 };
 
 interface ProviderHealth {

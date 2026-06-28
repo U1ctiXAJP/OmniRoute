@@ -1,17 +1,4 @@
-import { getProxyLogs, clearProxyLogs } from "@/lib/proxyLogger";
-import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
-
-function serverErrorResponse(error: unknown): Response {
-  return Response.json(
-    {
-      error: {
-        message: sanitizeErrorMessage(error instanceof Error ? error.message : String(error)),
-        type: "server_error",
-      },
-    },
-    { status: 500 }
-  );
-}
+import { getProxyLogs, clearProxyLogs, getProxyLogStats } from "@/lib/proxyLogger";
 
 /**
  * GET /api/usage/proxy-logs — get proxy usage logs
@@ -32,7 +19,10 @@ export async function GET(request: Request) {
     const logs = getProxyLogs(filters);
     return Response.json(logs);
   } catch (error) {
-    return serverErrorResponse(error);
+    return Response.json(
+      { error: { message: (error as any).message, type: "server_error" } },
+      { status: 500 }
+    );
   }
 }
 
@@ -44,6 +34,9 @@ export async function DELETE() {
     clearProxyLogs();
     return Response.json({ cleared: true });
   } catch (error) {
-    return serverErrorResponse(error);
+    return Response.json(
+      { error: { message: (error as any).message, type: "server_error" } },
+      { status: 500 }
+    );
   }
 }
