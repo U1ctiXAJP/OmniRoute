@@ -1,8 +1,5 @@
-// Convention: when type is a relay (vercel | deno | cloudflare), the `notes` column stores JSON
-// { relayAuth: "<token>" } used by proxyFetch.ts to route requests through the relay edge function
-// (Vercel Edge, Deno Deploy, or Cloudflare Workers) instead of an undici ProxyAgent. All relay
-// types share the exact same x-relay-target / x-relay-path / x-relay-auth header spec; only the
-// deployment surface differs.
+// Convention: when type === "vercel", the `notes` column stores JSON { relayAuth: "<token>" }
+// used by proxyFetch.ts to route requests through the Vercel edge relay instead of an undici ProxyAgent.
 import { randomUUID } from "crypto";
 import { getDbInstance } from "./core";
 import { backupDbFile } from "./backup";
@@ -122,16 +119,7 @@ function mapAssignmentRow(row: unknown): ProxyAssignmentRecord {
   };
 }
 
-// Edge-relay proxy types. Mirrors RELAY_TYPES in open-sse/utils/proxyDispatcher.
-// Duplicated here (not imported) to keep src/lib/db/ free of open-sse runtime
-// imports; if a third relay backend lands, update BOTH sets.
-const RELAY_PROXY_TYPES = new Set(["vercel", "deno", "cloudflare"]);
-
-function isRelayProxyType(type: unknown): boolean {
-  return typeof type === "string" && RELAY_PROXY_TYPES.has(type);
-}
-
-export function extractRelayAuth(notes: unknown): string | undefined {
+function extractRelayAuth(notes: unknown): string | undefined {
   if (typeof notes !== "string") return undefined;
   try {
     const parsed = JSON.parse(notes) as {
@@ -153,7 +141,7 @@ export function extractRelayAuth(notes: unknown): string | undefined {
 
 function toRegistryProxyResolution(row: unknown, level: ProxyScope, levelId: string | null) {
   const record = toRecord(row);
-  const relayAuth = isRelayProxyType(record.type) ? extractRelayAuth(record.notes) : undefined;
+  const relayAuth = record.type === "vercel" ? extractRelayAuth(record.notes) : undefined;
   return {
     proxy: {
       type: record.type,
@@ -395,7 +383,7 @@ function coerceProxyPayload(value: unknown, fallbackName: string): ProxyPayload 
 
 export function redactProxySecrets(proxy: ProxyRegistryRecord): ProxyRegistryRecord {
   let redactedNotes = proxy.notes;
-  if (isRelayProxyType(proxy.type) && proxy.notes) {
+  if (proxy.type === "vercel" && proxy.notes) {
     try {
       const parsed = JSON.parse(proxy.notes);
       if (parsed && typeof parsed === "object") {
@@ -731,7 +719,7 @@ export async function resolveProxyForConnectionFromRegistry(connectionId: string
       .get(connectionId);
     if (accountAssignment) {
       const record = toRecord(accountAssignment);
-      const relayAuth = isRelayProxyType(record.type) ? extractRelayAuth(record.notes) : undefined;
+      const relayAuth = record.type === "vercel" ? extractRelayAuth(record.notes) : undefined;
       return {
         proxy: {
           type: record.type,
@@ -760,7 +748,7 @@ export async function resolveProxyForConnectionFromRegistry(connectionId: string
         .get(connection.provider);
       if (providerAssignment) {
         const record = toRecord(providerAssignment);
-        const relayAuth = isRelayProxyType(record.type) ? extractRelayAuth(record.notes) : undefined;
+        const relayAuth = record.type === "vercel" ? extractRelayAuth(record.notes) : undefined;
         return {
           proxy: {
             type: record.type,
@@ -785,7 +773,7 @@ export async function resolveProxyForConnectionFromRegistry(connectionId: string
       .get();
     if (globalAssignment) {
       const record = toRecord(globalAssignment);
-      const relayAuth = isRelayProxyType(record.type) ? extractRelayAuth(record.notes) : undefined;
+      const relayAuth = record.type === "vercel" ? extractRelayAuth(record.notes) : undefined;
       return {
         proxy: {
           type: record.type,

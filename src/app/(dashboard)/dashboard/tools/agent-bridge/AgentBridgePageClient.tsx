@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { RiskNoticeBanner } from "./components/RiskNoticeBanner";
 import { AgentBridgeServerCard } from "./components/AgentBridgeServerCard";
-import { AgentBridgeMaintenanceCard } from "./components/AgentBridgeMaintenanceCard";
 import { AgentList } from "./components/AgentList";
 import { EmptyStateNoProviders } from "./components/EmptyStateNoProviders";
 import { useAgentBridgeState } from "./hooks/useAgentBridgeState";
@@ -31,10 +30,6 @@ export interface AgentBridgeServerState {
   lastStartedAt: string | null;
   activeConns: number;
   interceptedCount: number;
-  /** Target hostnames are spoofed in /etc/hosts (from getMitmStatus). */
-  dnsConfigured: boolean;
-  /** A crash/SIGKILL left system state behind — surfaces the repair banner. */
-  orphanedStateDetected: boolean;
 }
 
 export type AgentMappingsMap = Record<string, MappingRow[]>;
@@ -200,14 +195,6 @@ export default function AgentBridgePageClient({
             onUpstreamCaSave={handleUpstreamCaSave}
             onBypassSave={handleBypassSave}
             bypassPatterns={data.bypassPatterns}
-          />
-
-          {/* Maintenance & diagnostics */}
-          <AgentBridgeMaintenanceCard
-            orphanedStateDetected={data.serverState.orphanedStateDetected}
-            certTrusted={data.serverState.certTrusted}
-            onError={setActionError}
-            onRefresh={refresh}
           />
 
           {/* Agent list */}

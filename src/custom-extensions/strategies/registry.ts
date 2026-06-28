@@ -4,7 +4,12 @@ export type CustomStrategyExecutor = (args: {
   targets: ResolvedComboTarget[];
   comboName: string;
   body: Record<string, unknown>;
-  log: any;
+  log: {
+    info: (...args: unknown[]) => void;
+    warn: (...args: unknown[]) => void;
+    debug: (...args: unknown[]) => void;
+    error?: (...args: unknown[]) => void;
+  };
 }) => ResolvedComboTarget[] | Promise<ResolvedComboTarget[]>;
 
 export const CUSTOM_STRATEGIES: Record<string, CustomStrategyExecutor> = {

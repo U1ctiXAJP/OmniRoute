@@ -38,11 +38,7 @@ export async function GET(request: Request) {
 
   try {
     const { getEnvSyncPlan } = await loadSyncHelpers();
-    // Pass an explicit rootDir so the helper never derives the root from a
-    // webpack-frozen `import.meta.url` (build-machine path) — that froze the
-    // path and 500'd this route on packaged installs (#5006). cwd matches the
-    // `.env` target used by createEnvBackup() above.
-    const plan = getEnvSyncPlan({ scope: "oauth", rootDir: process.cwd() });
+    const plan = getEnvSyncPlan({ scope: "oauth" });
 
     return NextResponse.json({
       available: plan.available,
@@ -67,9 +63,8 @@ export async function POST(request: Request) {
   try {
     const { syncEnv, getEnvSyncPlan } = await loadSyncHelpers();
     const backupPath = createEnvBackup();
-    // Explicit rootDir (cwd) — see GET above (#5006).
-    const result = syncEnv({ scope: "oauth", quiet: true, rootDir: process.cwd() });
-    const plan = getEnvSyncPlan({ scope: "oauth", rootDir: process.cwd() });
+    const result = syncEnv({ scope: "oauth", quiet: true });
+    const plan = getEnvSyncPlan({ scope: "oauth" });
 
     return NextResponse.json({
       success: true,

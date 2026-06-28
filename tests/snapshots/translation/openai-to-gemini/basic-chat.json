@@ -10,11 +10,7 @@
     }
   ],
   "generationConfig": {
-    "maxOutputTokens": 65536,
-    "thinkingConfig": {
-      "includeThoughts": true,
-      "thinkingBudget": 24576
-    }
+    "maxOutputTokens": 65536
   },
   "model": "gemini-2.5-flash",
   "safetySettings": [

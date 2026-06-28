@@ -60,7 +60,6 @@ export interface ComboDefaults {
   reasoningTokenBufferEnabled?: boolean;
   concurrencyPerModel?: number;
   queueTimeoutMs?: number;
-  queueDepth?: number;
   handoffThreshold?: number;
   handoffModel?: string;
   handoffProviders?: string[];

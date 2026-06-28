@@ -18,19 +18,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 test("bypassProxyPatch is present in the NVIDIA validation path (#3226 documented exception)", () => {
-  // After the validation.ts godfile split (#4921–#4930), bypassProxyPatch moved to the
-  // extracted validation/headers.ts. Assert the bypass lives in the validation LAYER
-  // (validation.ts + its extracted modules), not that it stayed in one file.
-  const validationLayer =
-    readFileSync("src/lib/providers/validation.ts", "utf8") +
-    readFileSync("src/lib/providers/validation/headers.ts", "utf8");
+  const validation = readFileSync("src/lib/providers/validation.ts", "utf8");
   assert.ok(
-    validationLayer.includes("bypassProxyPatch"),
-    "expected bypassProxyPatch in the validation layer (validation/headers.ts) — the documented NVIDIA exception"
+    validation.includes("bypassProxyPatch"),
+    "expected bypassProxyPatch to be present in validation.ts (the documented NVIDIA exception)"
   );
   assert.ok(
-    validationLayer.includes("directHttpsRequest"),
-    "expected directHttpsRequest helper in the validation layer"
+    validation.includes("directHttpsRequest"),
+    "expected directHttpsRequest helper to be present in validation.ts"
   );
 });
 

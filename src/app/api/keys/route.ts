@@ -63,33 +63,16 @@ export async function POST(request) {
     if (isValidationFailure(validation)) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-    const {
-      name,
-      noLog,
-      scopes,
-      allowUsageCommand,
-      usageLimitEnabled,
-      dailyUsageLimitUsd,
-      weeklyUsageLimitUsd,
-    } = validation.data;
+    const { name, noLog, scopes, allowUsageCommand } = validation.data;
 
     // Always get machineId from server
     const machineId = await getConsistentMachineId();
     const normalizedScopes = normalizeSelfServiceScopesForCreate(scopes);
     const apiKey = await createApiKey(name, machineId, normalizedScopes);
-    if (
-      noLog === true ||
-      allowUsageCommand === true ||
-      usageLimitEnabled === true ||
-      dailyUsageLimitUsd !== undefined ||
-      weeklyUsageLimitUsd !== undefined
-    ) {
+    if (noLog === true || allowUsageCommand === true) {
       await updateApiKeyPermissions(apiKey.id, {
         ...(noLog === true && { noLog: true }),
         ...(allowUsageCommand === true && { allowUsageCommand: true }),
-        ...(usageLimitEnabled === true && { usageLimitEnabled: true }),
-        ...(dailyUsageLimitUsd !== undefined && { dailyUsageLimitUsd }),
-        ...(weeklyUsageLimitUsd !== undefined && { weeklyUsageLimitUsd }),
       });
     }
 
@@ -104,9 +87,6 @@ export async function POST(request) {
         machineId: apiKey.machineId,
         noLog: noLog === true,
         allowUsageCommand: allowUsageCommand === true,
-        usageLimitEnabled: usageLimitEnabled === true,
-        dailyUsageLimitUsd: dailyUsageLimitUsd ?? null,
-        weeklyUsageLimitUsd: weeklyUsageLimitUsd ?? null,
         streamDefaultMode: "legacy",
       },
       { status: 201 }

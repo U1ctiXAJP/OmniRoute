@@ -13,10 +13,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { homedir, platform } from "node:os";
 import updateNotifier from "update-notifier";
 import { isNativeBinaryCompatible } from "../scripts/build/native-binary-compat.mjs";
 import { getNodeRuntimeSupport, getNodeRuntimeWarning } from "./nodeRuntimeSupport.mjs";
-import { getDefaultDataDir } from "./cli/data-dir.mjs";
 import { shouldProvisionStorageKey } from "./cli/utils/storageKeyProvision.mjs";
 
 // Register tsx so dynamic imports of .ts source files (referenced as .js per
@@ -41,25 +41,26 @@ if (process.argv.includes("--mcp")) {
 
 function loadEnvFile() {
   const envPaths = [];
-  const loadedEnvPaths = [];
-  const seenEnvPaths = new Set();
-  const addEnvPath = (envPath) => {
-    if (seenEnvPaths.has(envPath)) return;
-    seenEnvPaths.add(envPath);
-    envPaths.push(envPath);
-  };
 
   if (process.env.DATA_DIR) {
-    addEnvPath(join(process.env.DATA_DIR, ".env"));
+    envPaths.push(join(process.env.DATA_DIR, ".env"));
   }
 
-  addEnvPath(join(getDefaultDataDir(), ".env"));
+  const home = homedir();
+  if (home) {
+    if (platform() === "win32") {
+      const appData = process.env.APPDATA || join(home, "AppData", "Roaming");
+      envPaths.push(join(appData, "omniroute", ".env"));
+    } else {
+      envPaths.push(join(home, ".omniroute", ".env"));
+    }
+  }
 
-  addEnvPath(join(process.cwd(), ".env"));
+  envPaths.push(join(process.cwd(), ".env"));
   // Skip the repo-checkout .env when explicitly requested (used by isolation tests
   // that need a deterministic environment without the development repo's defaults).
   if (process.env.OMNIROUTE_CLI_SKIP_REPO_ENV !== "1") {
-    addEnvPath(join(ROOT, ".env"));
+    envPaths.push(join(ROOT, ".env"));
   }
 
   for (const envPath of envPaths) {
@@ -78,15 +79,12 @@ function loadEnvFile() {
             }
           }
         }
-        loadedEnvPaths.push(envPath);
+        console.log(`  \x1b[2m📋 Loaded env from ${envPath}\x1b[0m`);
+        return;
       }
     } catch {
       // Ignore errors reading env files.
     }
-  }
-
-  for (const envPath of loadedEnvPaths) {
-    console.log(`  \x1b[2m📋 Loaded env from ${envPath}\x1b[0m`);
   }
 }
 

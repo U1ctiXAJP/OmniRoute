@@ -175,18 +175,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "caution",
   },
   {
-    key: "OMNIROUTE_ALLOW_LOCAL_PROVIDER_URLS",
-    label: "Allow Local Provider URLs",
-    description:
-      "Allow adding and validating providers on local/private addresses (127.0.0.1, localhost, LAN, private IP ranges) — needed for local OpenAI-compatible models. Enabled by default (OmniRoute is local-first); turn it OFF to enforce strict public-only blocking if you only use public providers. Cloud-metadata endpoints (e.g. 169.254.169.254) stay blocked either way.",
-    descriptionI18nKey: "featureFlagOmnirouteAllowLocalProviderUrlsDescription",
-    category: "network",
-    defaultValue: "true",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "caution",
-  },
-  {
     key: "ENABLE_CC_COMPATIBLE_PROVIDER",
     label: "CC Compatible Provider",
     description: "Enable Claude Code compatible provider mode",
@@ -234,7 +222,7 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "info",
   },
 
-  // ──────────────── Runtime (12) ────────────────
+  // ──────────────── Runtime (10) ────────────────
   {
     key: "OMNIROUTE_MCP_ENFORCE_SCOPES",
     label: "MCP Enforce Scopes",
@@ -326,30 +314,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "caution",
   },
   {
-    key: "STREAM_RECOVERY_ENABLED",
-    label: "Stream Recovery",
-    description:
-      "Enable transparent early retry for truncated upstream SSE streams before any response bytes reach the client.",
-    descriptionI18nKey: "featureFlagStreamRecoveryEnabledDescription",
-    category: "runtime",
-    defaultValue: "false",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "caution",
-  },
-  {
-    key: "STREAM_RECOVERY_MIDSTREAM_ENABLED",
-    label: "Mid-Stream Continuation",
-    description:
-      "Allow stream recovery to re-request and stitch a response after bytes have already reached the client.",
-    descriptionI18nKey: "featureFlagStreamRecoveryMidstreamEnabledDescription",
-    category: "runtime",
-    defaultValue: "false",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "danger",
-  },
-  {
     key: "MODEL_CATALOG_INCLUDE_NAMES",
     label: "Model Catalog Names",
     description:
@@ -358,19 +322,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     category: "runtime",
     defaultValue: "true",
     type: "boolean",
-    requiresRestart: false,
-    warningLevel: "info",
-  },
-  {
-    key: "MODELS_CATALOG_PREFIX_MODE",
-    label: "Models Catalog Prefix Mode",
-    description:
-      "Controls how model IDs are prefixed in /v1/models. 'dual' (default) emits both alias and canonical provider-id prefixes for backward compatibility. 'alias' emits only the short alias prefix (e.g. ds-web/model, not deepseek-web/model). 'canonical' emits only the full provider-id prefix.",
-    descriptionI18nKey: "featureFlagModelsCatalogPrefixModeDescription",
-    category: "runtime",
-    defaultValue: "dual",
-    type: "enum",
-    enumValues: ["dual", "alias", "canonical"],
     requiresRestart: false,
     warningLevel: "info",
   },

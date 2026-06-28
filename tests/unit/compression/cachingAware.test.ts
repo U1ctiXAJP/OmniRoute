@@ -26,11 +26,10 @@ describe("detectCachingContext", () => {
     assert.equal(ctx.isCachingProvider, true);
   });
 
-  it("extracts openai provider from model string (automatic prefix caching, #3955)", () => {
+  it("extracts openai provider from model string", () => {
     const ctx = detectCachingContext({ model: "openai/gpt-4o" });
     assert.equal(ctx.provider, "openai");
-    // #3955 — OpenAI uses automatic prefix caching; it counts as a caching provider.
-    assert.equal(ctx.isCachingProvider, true);
+    assert.equal(ctx.isCachingProvider, false);
   });
 
   it("extracts google provider from model string", () => {
@@ -134,15 +133,12 @@ describe("getCacheAwareStrategy", () => {
     assert.equal(result.deterministicOnly, false);
   });
 
-  it("protects the prefix for a caching provider even WITHOUT cache_control (#3955)", () => {
-    // #3955 — automatic prefix caching (OpenAI/Codex/Anthropic) sets no cache_control
-    // markers, but the cacheable prefix must still be preserved. isCachingProvider alone
-    // is sufficient to skip the system prompt and downgrade prefix-compressing modes.
+  it("keeps strategy unchanged when no cache_control even for caching provider", () => {
     const ctx = { hasCacheControl: false, provider: "anthropic", isCachingProvider: true };
     const result = getCacheAwareStrategy("aggressive", ctx);
-    assert.equal(result.strategy, "standard");
-    assert.equal(result.skipSystemPrompt, true);
-    assert.equal(result.deterministicOnly, true);
+    assert.equal(result.strategy, "aggressive");
+    assert.equal(result.skipSystemPrompt, false);
+    assert.equal(result.deterministicOnly, false);
   });
 
   it("returns none strategy unchanged", () => {

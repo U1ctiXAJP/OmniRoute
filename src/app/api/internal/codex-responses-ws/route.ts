@@ -513,7 +513,6 @@ async function persistResponsesWsCallHistory(body: JsonRecord) {
     latencyMs: durationMs,
     timeToFirstTokenMs: durationMs,
     errorCode,
-    endpoint: "/v1/responses",
   });
 
   logProxyEvent({

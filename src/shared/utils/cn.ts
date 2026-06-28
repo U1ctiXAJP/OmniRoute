@@ -1,12 +1,6 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+// Utility function to merge class names
+// Handles conditional classes and removes duplicates
 
-/**
- * Merge class names. Conditional classes are flattened by clsx; conflicting Tailwind
- * utilities are deduped by tailwind-merge, so a caller's `className` override actually
- * REPLACES a primitive's class (e.g. `rounded-full` wins over the primitive's radius)
- * instead of both stacking and relying on CSS source order.
- */
-export function cn(...classes: ClassValue[]) {
-  return twMerge(clsx(classes));
+export function cn(...classes) {
+  return classes.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }

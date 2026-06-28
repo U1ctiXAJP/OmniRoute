@@ -19,16 +19,8 @@ export function TrafficInspectorPageClient() {
   const [containerHeight, setContainerHeight] = useState(600);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<InterceptedRequest | null>(null);
-  const {
-    filters,
-    setProfile,
-    setHost,
-    setAgent,
-    setStatus,
-    setSessionId,
-    setSameContext,
-    toggleLive,
-  } = useTrafficFilters();
+  const { filters, setProfile, setHost, setAgent, setStatus, setSessionId, setSameContext } =
+    useTrafficFilters();
   const [{ listWidth, collapsed }, { startDrag, toggleCollapse }] = useResizablePanels();
   const [streamState, streamActions] = useTrafficStream(filters);
   const recorder = useSessionRecorder();
@@ -116,8 +108,6 @@ export function TrafficInspectorPageClient() {
           onHostChange={setHost}
           onAgentChange={setAgent}
           onStatusChange={setStatus}
-          liveOnly={filters.liveOnly ?? false}
-          onToggleLive={toggleLive}
           paused={streamState.paused}
           onPause={streamActions.pause}
           onResume={streamActions.resume}

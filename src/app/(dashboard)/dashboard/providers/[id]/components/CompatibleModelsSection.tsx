@@ -21,7 +21,6 @@ import {
   type CompatModelRow,
 } from "../providerPageHelpers";
 import { ModelVisibilityToolbar } from "./ModelRow";
-import { sortModelsFreeFirst, isFreeModel } from "@/shared/utils/freeModels";
 import PassthroughModelRow, { type PassthroughModelRowProps } from "./PassthroughModelRow";
 
 // ---------------------------------------------------------------------------
@@ -126,8 +125,6 @@ export default function CompatibleModelsSection({
   const [importing, setImporting] = useState(false);
   const [modelFilter, setModelFilter] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | "visible" | "hidden">("all");
-  const [freeFilter, setFreeFilter] = useState<"all" | "free" | "paid">("all");
-  const [sortFreeFirst, setSortFreeFirst] = useState(false);
   const notify = useNotificationStore();
   const customModelMap = useMemo(() => buildCompatMap(customModels), [customModels]);
 
@@ -168,8 +165,7 @@ export default function CompatibleModelsSection({
         isFree:
           Boolean((model as any).free) ||
           model.id.endsWith(":free") ||
-          /\bgr[aá]tis\b|\bfree\b/i.test(model.name || "") ||
-          isFreeModel(providerStorageAlias, { id: model.id }),
+          /\bgr[aá]tis\b|\bfree\b/i.test(model.name || ""),
         isHidden: isModelHidden(model.id),
       });
       seenModelIds.add(model.id);
@@ -203,8 +199,7 @@ export default function CompatibleModelsSection({
         isFree:
           modelId.endsWith(":free") ||
           Boolean((customModel as any)?.free) ||
-          /\bgr[aá]tis\b|\bfree\b/i.test(customModel?.name || alias || "") ||
-          isFreeModel(providerStorageAlias, { id: modelId }),
+          /\bgr[aá]tis\b|\bfree\b/i.test(customModel?.name || alias || ""),
         isHidden: isModelHidden(modelId),
       });
       seenModelIds.add(modelId);
@@ -234,13 +229,8 @@ export default function CompatibleModelsSection({
         : visibilityFilter === "visible"
           ? !model.isHidden
           : model.isHidden;
-    const matchesFreeFilter =
-      freeFilter === "all" ? true : freeFilter === "free" ? model.isFree : !model.isFree;
-    return matchesQuery && matchesVisibility && matchesFreeFilter;
+    return matchesQuery && matchesVisibility;
   });
-  const displayModels = sortFreeFirst
-    ? sortModelsFreeFirst(filteredModels, { isFree: (m) => m.isFree, key: (m) => m.modelId })
-    : filteredModels;
   const activeCount = allModels.filter((model) => !model.isHidden).length;
   const hiddenFilteredCount = filteredModels.filter((model) => model.isHidden).length;
   const visibleFilteredCount = filteredModels.length - hiddenFilteredCount;
@@ -409,10 +399,6 @@ export default function CompatibleModelsSection({
             deselectAllDisabled={visibleFilteredCount === 0 || bulkTogglePending}
             visibilityFilter={visibilityFilter}
             onVisibilityFilterChange={setVisibilityFilter}
-            freeFilter={freeFilter}
-            onFreeFilterChange={setFreeFilter}
-            sortFreeFirst={sortFreeFirst}
-            onSortFreeFirstChange={setSortFreeFirst}
             onTestAll={() => {
               const targets = filteredModels
                 .filter((m) => !m.isHidden)
@@ -428,14 +414,13 @@ export default function CompatibleModelsSection({
             onAutoHideFailedChange={onAutoHideFailedChange}
           />
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            {displayModels.map(({ modelId, alias, isHidden, source, isFree }) => {
+            {filteredModels.map(({ modelId, alias, isHidden, source, isFree }) => {
               const fullModel = `${providerDisplayAlias}/${modelId}`;
               return (
                 <PassthroughModelRow
                   key={`${providerStorageAlias}:${modelId}`}
                   modelId={modelId}
                   fullModel={fullModel}
-                  alias={alias}
                   source={source}
                   isFree={isFree}
                   isHidden={isHidden}
@@ -448,7 +433,6 @@ export default function CompatibleModelsSection({
                         ? () => onDeleteAlias(alias)
                         : undefined
                   }
-                  onSetAlias={(a) => onSetAlias(modelId, a, providerStorageAlias)}
                   t={t}
                   showDeveloperToggle={!isAnthropic}
                   effectiveModelNormalize={effectiveModelNormalize}

@@ -1,5 +1,5 @@
 ---
-title: "Custom Extensions Architecture"
+title: Custom Extensions Architecture
 ---
 
 # Custom Extensions Architecture

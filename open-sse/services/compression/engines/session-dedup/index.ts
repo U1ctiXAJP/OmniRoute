@@ -30,7 +30,6 @@
 
 import crypto from "node:crypto";
 import { createCompressionStats } from "../../stats.ts";
-import { runFuzzyPass } from "./fuzzy.ts";
 import type {
   CompressionEngine,
   CompressionEngineApplyOptions,
@@ -46,12 +45,16 @@ const ENGINE_ID = "session-dedup";
 const DEFAULT_MIN_BLOCK_CHARS = 80;
 /** Minimum number of lines a block must span to be a dedup candidate. */
 const MIN_BLOCK_LINES = 3;
+/** Marker pattern for reconstruction. */
+const MARKER_RE = /\[dedup:ref sha=([0-9a-f]{24})\]/g;
+/** Key used to store the reverse map in the body object. */
+const DEDUP_MAP_KEY = "__sessionDedupMap__";
 
 // ─── hash helper (SHA-256 prefix, collision-resistant) ───────────────────────
 
 function hashBlock(text: string): string {
-  // 24 hex / 96 bits — collision-resistant (a 32-bit djb2 could collide and make a
-  // dedup marker reference the WRONG block). Pass 2 additionally verifies block
+  // 24 hex / 96 bits — collision-resistant (a 32-bit djb2 could collide and make
+  // reconstruction restore the WRONG block). Pass 2 additionally verifies block
   // equality before substituting, so a collision can never cause corruption.
   return crypto.createHash("sha256").update(text).digest("hex").slice(0, 24);
 }
@@ -97,6 +100,7 @@ function dedupMessageTexts(
   minBlockChars: number
 ): {
   deduped: Map<number, string>;
+  reverseMap: Map<string, string>;
   dedupCount: number;
 } {
   // Pass 1: for each message, extract suffix blocks and record first ownership.
@@ -114,6 +118,12 @@ function dedupMessageTexts(
     }
   }
 
+  // Build reverse map (sha → block) for all first-seen blocks.
+  const reverseMap = new Map<string, string>();
+  for (const [sha, { block }] of firstSeen) {
+    reverseMap.set(sha, block);
+  }
+
   // Pass 2: for each message, find blocks that were FIRST seen in an earlier message.
   const deduped = new Map<number, string>();
   let dedupCount = 0;
@@ -128,7 +138,7 @@ function dedupMessageTexts(
       const sha = hashBlock(block);
       const owner = firstSeen.get(sha);
       // owner.block === block guards against a (now astronomically unlikely) hash
-      // collision substituting a marker that would reference the wrong block.
+      // collision substituting a marker that would reconstruct to the wrong text.
       if (owner && owner.ownerMsgIdx < msgIdx && owner.block === block) {
         dupBlocks.push({ block, sha });
       }
@@ -164,7 +174,7 @@ function dedupMessageTexts(
     }
   }
 
-  return { deduped, dedupCount };
+  return { deduped, reverseMap, dedupCount };
 }
 
 // ─── message array processing ─────────────────────────────────────────────────
@@ -181,7 +191,7 @@ type MessageLike = {
 function processMessages(
   messages: MessageLike[],
   minBlockChars: number
-): { messages: MessageLike[]; dedupCount: number } {
+): { messages: MessageLike[]; reverseMap: Map<string, string>; dedupCount: number } {
   // Collect (msgIdx, text) for non-system string-content messages.
   // For multipart, index each text part separately.
   const msgTexts: Array<{ msgIdx: number; text: string }> = [];
@@ -203,13 +213,13 @@ function processMessages(
   }
 
   if (msgTexts.length < 2) {
-    return { messages, dedupCount: 0 };
+    return { messages, reverseMap: new Map(), dedupCount: 0 };
   }
 
-  const { deduped, dedupCount } = dedupMessageTexts(msgTexts, minBlockChars);
+  const { deduped, reverseMap, dedupCount } = dedupMessageTexts(msgTexts, minBlockChars);
 
   if (dedupCount === 0) {
-    return { messages, dedupCount: 0 };
+    return { messages, reverseMap, dedupCount: 0 };
   }
 
   const result = messages.map((msg, i) => {
@@ -238,7 +248,7 @@ function processMessages(
     return { ...msg };
   });
 
-  return { messages: result, dedupCount };
+  return { messages: result, reverseMap, dedupCount };
 }
 
 // ─── schema & validation ──────────────────────────────────────────────────────
@@ -259,14 +269,6 @@ const SESSION_DEDUP_SCHEMA: EngineConfigField[] = [
     min: 1,
     max: 100000,
   },
-  {
-    key: "fuzzy",
-    type: "boolean",
-    label: "Fuzzy near-duplicate dedup",
-    description:
-      "Opt-in: replace whole messages ~85%+ similar to an earlier one with a recoverable CCR marker.",
-    defaultValue: false,
-  },
 ];
 
 function validateSessionDedupConfig(config: Record<string, unknown>): EngineValidationResult {
@@ -278,15 +280,6 @@ function validateSessionDedupConfig(config: Record<string, unknown>): EngineVali
     const v = config["minBlockChars"];
     if (typeof v !== "number" || !Number.isFinite(v) || v < 1) {
       errors.push("minBlockChars must be a positive number");
-    }
-  }
-  if (config["fuzzy"] !== undefined) {
-    const f = config["fuzzy"];
-    if (typeof f === "object" && f !== null) {
-      const fe = (f as Record<string, unknown>)["enabled"];
-      if (fe !== undefined && typeof fe !== "boolean") errors.push("fuzzy.enabled must be a boolean");
-    } else if (typeof f !== "boolean") {
-      errors.push("fuzzy must be an object { enabled } or a boolean");
     }
   }
   return { valid: errors.length === 0, errors };
@@ -335,30 +328,41 @@ export const sessionDedupEngine: CompressionEngine = {
     }
 
     const start = performance.now();
-    const { messages: exactMessages, dedupCount } = processMessages(
-      messages as MessageLike[],
-      minBlockChars
-    );
+    const {
+      messages: dedupedMessages,
+      reverseMap,
+      dedupCount,
+    } = processMessages(messages as MessageLike[], minBlockChars);
 
-    const { messages: finalMessages, fuzzyCount } = runFuzzyPass(
-      exactMessages,
-      stepConfig,
-      minBlockChars,
-      options?.principalId
-    );
-
-    if (dedupCount + fuzzyCount === 0) {
+    if (dedupCount === 0) {
       return { body, compressed: false, stats: null };
     }
 
-    const newBody: Record<string, unknown> = { ...body, messages: finalMessages };
+    const newBody: Record<string, unknown> = {
+      ...body,
+      messages: dedupedMessages,
+    };
+
+    // Store the reverse map as a NON-ENUMERABLE property so JSON.stringify does not
+    // include it in the serialized output (which goes to the upstream provider).
+    // reconstructSessionDedup reads it back via getOwnPropertyDescriptor.
+    Object.defineProperty(newBody, DEDUP_MAP_KEY, {
+      value: Object.fromEntries(reverseMap),
+      enumerable: false,
+      configurable: true,
+      writable: false,
+    });
+
     const durationMs = Math.round(performance.now() - start);
-    const techniques = ["session-dedup"];
-    if (fuzzyCount > 0) techniques.push("fuzzy-dedup");
-    const rules: string[] = [];
-    if (dedupCount > 0) rules.push(`deduplicated-${dedupCount}-blocks`);
-    if (fuzzyCount > 0) rules.push(`fuzzy-${fuzzyCount}-blocks`);
-    const stats = createCompressionStats(body, newBody, "stacked", techniques, rules, durationMs);
+    const stats = createCompressionStats(
+      body,
+      newBody,
+      "stacked",
+      ["session-dedup"],
+      [`deduplicated-${dedupCount}-blocks`],
+      durationMs
+    );
+
     return { body: newBody, compressed: true, stats };
   },
 
@@ -374,3 +378,66 @@ export const sessionDedupEngine: CompressionEngine = {
     return validateSessionDedupConfig(config);
   },
 };
+
+// ─── reconstruction helper ────────────────────────────────────────────────────
+
+/**
+ * Reverse the dedup: replace every `[dedup:ref sha=XXXXXXXX]` marker with the
+ * original block text stored in the reverse map attached to the body by
+ * `sessionDedupEngine.apply`.
+ *
+ * Returns a new body object without the internal `__sessionDedupMap__` key.
+ */
+export function reconstructSessionDedup(body: Record<string, unknown>): Record<string, unknown> {
+  // The reverse map is stored as a non-enumerable property so it doesn't appear
+  // in JSON.stringify. Access it via getOwnPropertyDescriptor.
+  const mapDescriptor = Object.getOwnPropertyDescriptor(body, DEDUP_MAP_KEY);
+  const rawMap = mapDescriptor?.value ?? body[DEDUP_MAP_KEY];
+  if (!rawMap || typeof rawMap !== "object" || Array.isArray(rawMap)) return body;
+
+  const reverseMap = new Map<string, string>(Object.entries(rawMap as Record<string, string>));
+
+  const messages = body["messages"];
+  if (!Array.isArray(messages)) return body;
+
+  type MsgLike = {
+    role?: string;
+    content?: string | Array<Record<string, unknown>>;
+    [key: string]: unknown;
+  };
+
+  const restored = (messages as MsgLike[]).map((msg) => {
+    const content = msg["content"];
+
+    if (typeof content === "string") {
+      const reconstructed = content.replace(
+        MARKER_RE,
+        (_m, sha: string) => reverseMap.get(sha) ?? _m
+      );
+      return reconstructed !== content ? { ...msg, content: reconstructed } : { ...msg };
+    }
+
+    if (Array.isArray(content)) {
+      let changed = false;
+      const newContent = content.map((part) => {
+        if (part["type"] !== "text" || typeof part["text"] !== "string") return part;
+        const reconstructed = (part["text"] as string).replace(
+          MARKER_RE,
+          (_m, sha: string) => reverseMap.get(sha) ?? _m
+        );
+        if (reconstructed !== part["text"]) {
+          changed = true;
+          return { ...part, text: reconstructed };
+        }
+        return part;
+      });
+      return changed ? { ...msg, content: newContent } : { ...msg };
+    }
+
+    return { ...msg };
+  });
+
+  const { [DEDUP_MAP_KEY]: _dropped, ...restBody } = body;
+  void _dropped;
+  return { ...restBody, messages: restored };
+}

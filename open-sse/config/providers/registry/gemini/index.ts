@@ -23,12 +23,6 @@ export const geminiProvider: RegistryEntry = {
   models: [
     { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", toolCalling: true, supportsVision: true },
     {
-      id: "gemini-2.0-flash-lite",
-      name: "Gemini 2.0 Flash Lite",
-      toolCalling: true,
-      supportsVision: true,
-    },
-    {
       id: "gemini-3.1-pro-preview",
       name: "Gemini 3.1 Pro Preview",
       toolCalling: true,
@@ -37,12 +31,6 @@ export const geminiProvider: RegistryEntry = {
     {
       id: "gemini-3-flash-preview",
       name: "Gemini 3 Flash Preview",
-      toolCalling: true,
-      supportsVision: true,
-    },
-    {
-      id: "gemini-3-flash-lite-preview",
-      name: "Gemini 3 Flash Lite Preview",
       toolCalling: true,
       supportsVision: true,
     },
@@ -58,7 +46,6 @@ export const geminiProvider: RegistryEntry = {
       toolCalling: true,
       supportsVision: true,
     },
-    { id: "gemini-3.1-flash-tts-preview", name: "Gemini 3.1 Flash TTS" },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", toolCalling: true, supportsVision: true },
     {
       id: "gemini-2.5-flash",

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { Toggle } from "@/shared/components";
 
 type CavemanIntensity = "lite" | "full" | "ultra";
 type RtkIntensity = "minimal" | "standard" | "aggressive";
@@ -15,49 +17,103 @@ export interface CompressionTokenSaverConfig {
 
 export type CompressionTokenSaverPatch = Partial<CompressionTokenSaverConfig>;
 
-// Read-only summary. The engine on/off + level toggles that used to live here moved to
-// the single-source panel (/dashboard/context/settings). This card now only reflects the
-// current state and links to the panel — it no longer writes anything (the `onSave` prop
-// is accepted for backward compatibility but intentionally unused).
-function StatusPill({ on }: { on: boolean }) {
+const CAVEMAN_LEVELS: { value: CavemanIntensity; label: string }[] = [
+  { value: "lite", label: "Lite" },
+  { value: "full", label: "Full" },
+  { value: "ultra", label: "Ultra" },
+];
+
+const RTK_LEVELS: { value: RtkIntensity; label: string }[] = [
+  { value: "minimal", label: "Min" },
+  { value: "standard", label: "Std" },
+  { value: "aggressive", label: "Agg" },
+];
+
+function SegmentedLevel<T extends string>({
+  levels,
+  value,
+  onChange,
+  disabled,
+}: {
+  levels: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  disabled: boolean;
+}) {
   return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-        on ? "bg-emerald-500/15 text-emerald-500" : "bg-border/50 text-text-muted"
+    <div
+      className={`inline-flex rounded-md border border-border bg-bg-subtle p-0.5 ${
+        disabled ? "opacity-50" : ""
       }`}
     >
-      {on ? "on" : "off"}
-    </span>
+      {levels.map((lvl) => {
+        const active = lvl.value === value;
+        return (
+          <button
+            key={lvl.value}
+            type="button"
+            onClick={() => !disabled && onChange(lvl.value)}
+            disabled={disabled}
+            className={`rounded px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+              active ? "bg-primary text-white" : "text-text-muted hover:text-text-primary"
+            } ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+          >
+            {lvl.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
-function SummaryRow({
+function EngineRow({
   title,
-  badge,
+  description,
   href,
-  on,
+  badge,
+  enabled,
+  masterEnabled,
+  saving,
+  onToggle,
   level,
 }: {
   title: string;
-  badge: string;
+  description: string;
   href: string;
-  on: boolean;
-  level: string;
+  badge: string;
+  enabled: boolean;
+  masterEnabled: boolean;
+  saving: boolean;
+  onToggle: (v: boolean) => void;
+  level: ReactNode;
 }) {
+  const effective = masterEnabled && enabled;
   return (
-    <div className="flex items-center justify-between gap-3 py-2 text-sm text-text-main">
-      <div className="flex items-center gap-2">
-        {title}
-        <Link
-          href={href}
-          className="rounded border border-border bg-bg-subtle px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-text-muted hover:border-primary/40 hover:text-primary"
-        >
-          {badge}
-        </Link>
+    <div
+      className={`flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between ${
+        masterEnabled ? "" : "opacity-60"
+      }`}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 text-sm font-medium text-text-main">
+          {title}
+          <Link
+            href={href}
+            className="rounded border border-border bg-bg-subtle px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-text-muted hover:border-primary/40 hover:text-primary"
+          >
+            {badge}
+          </Link>
+        </div>
+        <p className="mt-0.5 text-xs text-text-muted">{description}</p>
       </div>
-      <div className="flex items-center gap-2 text-xs text-text-muted">
-        <span>{level}</span>
-        <StatusPill on={on} />
+      <div className="flex shrink-0 items-center gap-2">
+        {level}
+        <Toggle
+          size="sm"
+          checked={effective}
+          onChange={onToggle}
+          disabled={!masterEnabled || saving}
+        />
       </div>
     </div>
   );
@@ -65,11 +121,12 @@ function SummaryRow({
 
 export default function CompressionTokenSaverCard({
   config,
+  saving,
+  onSave,
 }: {
   config: CompressionTokenSaverConfig;
-  // Kept for call-site compatibility; this card is read-only and never persists.
-  saving?: boolean;
-  onSave?: (patch: CompressionTokenSaverPatch) => void | Promise<void>;
+  saving: boolean;
+  onSave: (patch: CompressionTokenSaverPatch) => void | Promise<void>;
 }) {
   const t = useTranslations("settings");
   const masterEnabled = config.enabled;
@@ -90,42 +147,93 @@ export default function CompressionTokenSaverCard({
           <h4 className="flex items-center gap-2 text-base font-semibold text-text-main">
             <span className="material-symbols-outlined text-[21px] text-amber-500">bolt</span>
             {t("tokenSaverTitle")}
+            {saving && (
+              <span className="material-symbols-outlined text-[16px] animate-spin text-text-muted">
+                sync
+              </span>
+            )}
           </h4>
           <p className="mt-1 text-sm text-text-muted">{t("tokenSaverSubtitle")}</p>
         </div>
-        <StatusPill on={masterEnabled} />
+        <Toggle
+          size="md"
+          checked={masterEnabled}
+          onChange={(checked) => onSave({ enabled: checked })}
+          disabled={saving}
+        />
       </div>
 
-      <div className="mt-3 divide-y divide-border">
-        <SummaryRow
+      <div className="mt-4 divide-y divide-border">
+        <EngineRow
           title={t("tokenSaverToolOutput")}
           badge="RTK"
-          href="/dashboard/context/settings"
-          on={masterEnabled && rtk.enabled}
-          level={rtk.intensity}
+          href="/dashboard/context/rtk"
+          description={t("tokenSaverToolOutputDesc")}
+          enabled={rtk.enabled}
+          masterEnabled={masterEnabled}
+          saving={saving}
+          onToggle={(enabled) => onSave({ rtkConfig: { ...rtk, enabled } })}
+          level={
+            <SegmentedLevel
+              levels={RTK_LEVELS}
+              value={rtk.intensity}
+              onChange={(intensity) => onSave({ rtkConfig: { ...rtk, intensity } })}
+              disabled={saving || !masterEnabled || !rtk.enabled}
+            />
+          }
         />
-        <SummaryRow
+        <EngineRow
           title={t("tokenSaverLlmOutput")}
           badge="Caveman"
-          href="/dashboard/context/settings"
-          on={masterEnabled && cavemanOut.enabled}
-          level={cavemanOut.intensity}
+          href="/dashboard/context/caveman"
+          description={t("tokenSaverLlmOutputDesc")}
+          enabled={cavemanOut.enabled}
+          masterEnabled={masterEnabled}
+          saving={saving}
+          onToggle={(enabled) => onSave({ cavemanOutputMode: { ...cavemanOut, enabled } })}
+          level={
+            <SegmentedLevel
+              levels={CAVEMAN_LEVELS}
+              value={cavemanOut.intensity}
+              onChange={(intensity) => onSave({ cavemanOutputMode: { ...cavemanOut, intensity } })}
+              disabled={saving || !masterEnabled || !cavemanOut.enabled}
+            />
+          }
         />
-        <SummaryRow
+        <EngineRow
           title={t("tokenSaverInputCompression")}
           badge="Caveman"
-          href="/dashboard/context/settings"
-          on={masterEnabled && cavemanIn.enabled}
-          level={cavemanIn.intensity}
+          href="/dashboard/context/caveman"
+          description={t("tokenSaverInputCompressionDesc")}
+          enabled={cavemanIn.enabled}
+          masterEnabled={masterEnabled}
+          saving={saving}
+          onToggle={(enabled) => onSave({ cavemanConfig: { ...cavemanIn, enabled } })}
+          level={
+            <SegmentedLevel
+              levels={CAVEMAN_LEVELS}
+              value={cavemanIn.intensity}
+              onChange={(intensity) => onSave({ cavemanConfig: { ...cavemanIn, intensity } })}
+              disabled={saving || !masterEnabled || !cavemanIn.enabled}
+            />
+          }
         />
       </div>
 
       <div className="mt-4 flex items-start gap-2 border-t border-border pt-3 text-xs text-text-muted">
         <span className="material-symbols-outlined mt-px text-[16px]">info</span>
         <p>
-          Turn these layers on/off and set their level in{" "}
-          <Link href="/dashboard/context/settings" className="text-primary hover:underline">
-            Compression Settings
+          {t("tokenSaverFineTunePrefix")}{" "}
+          <Link href="/dashboard/context/caveman" className="text-primary hover:underline">
+            Caveman
+          </Link>{" "}
+          /{" "}
+          <Link href="/dashboard/context/rtk" className="text-primary hover:underline">
+            RTK
+          </Link>
+          , {t("tokenSaverFineTuneSuffix")}{" "}
+          <Link href="/dashboard/context/combos" className="text-primary hover:underline">
+            Engine Combos
           </Link>
           .
         </p>

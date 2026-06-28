@@ -447,14 +447,14 @@ test("models() returns combo entries merged into the map", async () => {
 
   // 3 raw models + 1 combo = 4 entries
   assert.equal(Object.keys(out).length, 4);
-  assert.ok(out["opencode-omniroute/claude-primary"]);
-  assert.ok(out["opencode-omniroute/claude-secondary"]);
-  assert.ok(out["opencode-omniroute/gemini-3-flash"]);
-  assert.ok(out["opencode-omniroute/claude-tier"]);
+  assert.ok(out["claude-primary"]);
+  assert.ok(out["claude-secondary"]);
+  assert.ok(out["gemini-3-flash"]);
+  assert.ok(out["combo/claude-tier"]);
 
-  const combo = out["opencode-omniroute/claude-tier"];
-  assert.equal(combo.name, "Claude Tier");
-  assert.equal(combo.providerID, "opencode-omniroute");
+  const combo = out["combo/claude-tier"];
+  assert.equal(combo.name, "Combo: Claude Tier");
+  assert.equal(combo.providerID, "omniroute");
   // LCD over claude-primary (200k, reasoning) + claude-secondary (100k, no reasoning)
   assert.equal(combo.limit.context, 100_000);
   assert.equal(combo.capabilities.reasoning, false);
@@ -478,11 +478,11 @@ test("models(): combo with unknown member ids degrades to all-false LCD posture"
     { fetcher: modelsFetcher, combosFetcher }
   );
   const out = await hook.models!({} as never, { auth: apiAuth("sk-z") as never });
-  assert.ok(out["opencode-omniroute/phantom-combo"]);
+  assert.ok(out["combo/phantom-combo"]);
   // With zero resolvable members, LCD = all-false (defensive posture).
-  assert.equal(out["opencode-omniroute/phantom-combo"].capabilities.toolcall, false);
-  assert.equal(out["opencode-omniroute/phantom-combo"].capabilities.reasoning, false);
-  assert.equal(out["opencode-omniroute/phantom-combo"].limit.context, 0);
+  assert.equal(out["combo/phantom-combo"].capabilities.toolcall, false);
+  assert.equal(out["combo/phantom-combo"].capabilities.reasoning, false);
+  assert.equal(out["combo/phantom-combo"].limit.context, 0);
 });
 
 test("models(): hidden combos are excluded from the map", async () => {
@@ -505,11 +505,11 @@ test("models(): hidden combos are excluded from the map", async () => {
     { fetcher: modelsFetcher, combosFetcher }
   );
   const out = await hook.models!({} as never, { auth: apiAuth("sk-z") as never });
-  assert.ok(out["opencode-omniroute/visible"]);
-  assert.ok(!out["opencode-omniroute/hidden"], "hidden combo must be omitted");
+  assert.ok(out["combo/visible"]);
+  assert.ok(!out["combo/hidden"], "hidden combo must be omitted");
 });
 
-test("models(): combo name exactly matches raw model id → raw deleted, raw deleted, no warn", async () => {
+test("models(): combo name exactly matches raw model id → raw deleted, combo lives at combo/ key, no warn", async () => {
   // Combo.name === raw model id triggers the dedup deletion. This mirrors
   // the real OmniRoute payload where /v1/models pre-mirrors combos as
   // no-slash raw entries whose ids match /api/combos friendly names.
@@ -529,9 +529,10 @@ test("models(): combo name exactly matches raw model id → raw deleted, raw del
     return hook.models!({} as never, { auth: apiAuth("sk-z") as never });
   });
 
-  // Raw model replaced by combo of the same key; combo now lives at the bare slug.
-  assert.ok(out["opencode-omniroute/claude-primary"], "combo surfaces under prefixed key");
-  assert.equal(out["opencode-omniroute/claude-primary"].name, "claude-primary");
+  // Raw model deleted by combo-name dedup; combo surfaces under combo/<slug>.
+  assert.equal(out["claude-primary"], undefined, "raw deleted by combo-name dedup");
+  assert.ok(out["combo/claude-primary"], "combo surfaces under combo/ namespace");
+  assert.equal(out["combo/claude-primary"].name, "Combo: claude-primary");
 
   // No collision warning fires — dedup makes keys disjoint.
   const collisionWarns = warnings.filter((w) => {
@@ -542,7 +543,7 @@ test("models(): combo name exactly matches raw model id → raw deleted, raw del
 });
 
 test("models(): two combos with same slug → second gets disambiguator suffix", async () => {
-  // Both combos slug to `claude` — second must get `claude-<id-prefix>`.
+  // Both combos slug to `claude` — second must get `combo/claude-<id-prefix>`.
   const combos: OmniRouteRawCombo[] = [
     {
       id: "uuid-a",
@@ -565,8 +566,8 @@ test("models(): two combos with same slug → second gets disambiguator suffix",
 
   const out = await hook.models!({} as never, { auth: apiAuth("sk-z") as never });
   // First combo gets the bare slug; second gets disambiguated.
-  assert.ok(out["opencode-omniroute/claude"], "first combo at prefixed slug");
-  assert.ok(out["opencode-omniroute/claude-uuid"], "second combo disambiguated by id prefix");
+  assert.ok(out["combo/claude"], "first combo at bare slug");
+  assert.ok(out["combo/claude-uuid"], "second combo disambiguated by id prefix");
 });
 
 test("models(): combos fetch fails → falls back to models-only, warn emitted, no throw", async () => {
@@ -583,8 +584,8 @@ test("models(): combos fetch fails → falls back to models-only, warn emitted, 
 
   // Catalog includes the models but NOT any combo entries.
   assert.equal(Object.keys(out).length, 2);
-  assert.ok(out["opencode-omniroute/claude-primary"]);
-  assert.ok(out["opencode-omniroute/claude-secondary"]);
+  assert.ok(out["claude-primary"]);
+  assert.ok(out["claude-secondary"]);
 
   // Soft-fail warning surfaced.
   const softFail = warnings.find((w) => {
@@ -609,7 +610,7 @@ test("models(): combos cached + reused within TTL (one combo fetch per TTL windo
   const second = await hook.models!({} as never, { auth: apiAuth("sk-z") as never });
   assert.equal(combosFetcher.callCount(), 1, "combos fetched only once within TTL");
   assert.equal(modelsFetcher.callCount(), 1, "models fetched only once within TTL");
-  assert.ok(second["opencode-omniroute/claude-tier"]);
+  assert.ok(second["combo/claude-tier"]);
 });
 
 test("models(): combos refetched after TTL expiry (same key as models)", async () => {
@@ -701,7 +702,7 @@ test("models(): nested combo-ref context is the min of nested + raw members", as
     { fetcher: modelsFetcher, combosFetcher }
   );
   const out = await hook.models!({} as never, { auth: apiAuth("sk-z") as never });
-  const masterLight = out["opencode-omniroute/master-light"];
+  const masterLight = out["combo/master-light"];
   assert.ok(masterLight, "MASTER-LIGHT entry must exist");
   assert.equal(
     masterLight.limit.context,

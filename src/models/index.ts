@@ -8,7 +8,6 @@ export {
   deleteProviderConnections,
   getProviderNodes,
   getProviderNodeById,
-  resolveProviderNodeForConnection,
   createProviderNode,
   updateProviderNode,
   deleteProviderNode,
@@ -16,7 +15,6 @@ export {
   getModelAliases,
   setModelAlias,
   deleteModelAlias,
-  deleteModelAliasesForProvider,
   getMitmAlias,
   setMitmAliasAll,
   getApiKeys,
@@ -25,5 +23,4 @@ export {
   validateApiKey,
   isCloudEnabled,
   resolveProxyForProvider,
-  getHiddenModelsByProvider,
 } from "@/lib/localDb";

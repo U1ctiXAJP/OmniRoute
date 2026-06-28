@@ -63,30 +63,17 @@ describe("COMPRESSION_CONTEXT_GROUP contains all 4 engine items", () => {
     assert.equal(item.labelFallback, "LLMLingua");
   });
 
-  it("4 engine items appear after context-rtk and before compression-studio", () => {
-    // Unified-panel order: Settings → Combos → per-engine pages → Studio.
+  it("4 engine items appear after context-rtk and before context-combos", () => {
     const ids = itemIds as string[];
     const rtkIdx = ids.indexOf("context-rtk");
-    const studioIdx = ids.indexOf("compression-studio");
+    const combosIdx = ids.indexOf("context-combos");
     assert.ok(rtkIdx !== -1, "context-rtk not found");
-    assert.ok(studioIdx !== -1, "compression-studio not found");
+    assert.ok(combosIdx !== -1, "context-combos not found");
 
     for (const id of ENGINE_IDS) {
       const idx = ids.indexOf(id);
       assert.ok(idx > rtkIdx, `${id} should appear after context-rtk`);
-      assert.ok(idx < studioIdx, `${id} should appear before compression-studio`);
-    }
-  });
-
-  it("group order is Settings → Combos → engines → Studio", () => {
-    const ids = itemIds as string[];
-    assert.equal(ids[0], "context-settings", "Settings must be first");
-    assert.equal(ids[1], "context-combos", "Combos must be second");
-    assert.equal(ids[ids.length - 1], "compression-studio", "Studio must be last");
-    // Combos precedes every per-engine page.
-    const combosIdx = ids.indexOf("context-combos");
-    for (const id of ["context-caveman", "context-rtk", ...ENGINE_IDS]) {
-      assert.ok(ids.indexOf(id) > combosIdx, `${id} should appear after context-combos`);
+      assert.ok(idx < combosIdx, `${id} should appear before context-combos`);
     }
   });
 });

@@ -24,9 +24,5 @@ declare module "sql.js" {
     Database: new (data?: Uint8Array) => SqlJsDatabase;
   }
 
-  export interface SqlJsInitOptions {
-    locateFile?: (fileName: string) => string;
-  }
-
-  export default function initSqlJs(options?: SqlJsInitOptions): Promise<SqlJsStatic>;
+  export default function initSqlJs(): Promise<SqlJsStatic>;
 }

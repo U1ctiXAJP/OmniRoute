@@ -33,7 +33,6 @@ const { resetAllCircuitBreakers } = await import("../../src/shared/utils/circuit
 const { acquire: acquireSemaphore, resetAll: resetAllSemaphores } =
   await import("../../open-sse/services/rateLimitSemaphore.ts");
 const { _resetAllDecks } = await import("../../src/shared/utils/shuffleDeck.ts");
-const { _setSecureRandomFloatSource } = await import("../../src/shared/utils/secureRandom.ts");
 
 function createLog() {
   const entries: any[] = [];
@@ -499,9 +498,10 @@ test("handleComboChat priority strategy honors composite tier order before fallb
 });
 
 test("handleComboChat weighted strategy selects by weight and falls back in descending weight order", async () => {
+  const originalRandom = Math.random;
   const calls: any[] = [];
 
-  _setSecureRandomFloatSource(() => 0.95);
+  Math.random = () => 0.95;
 
   try {
     const result = await handleComboChat({
@@ -530,13 +530,14 @@ test("handleComboChat weighted strategy selects by weight and falls back in desc
     assert.equal(result.ok, true);
     assert.deepEqual(calls, ["claude/sonnet", "openai/gpt-4o-mini"]);
   } finally {
-    _setSecureRandomFloatSource(null);
+    Math.random = originalRandom;
   }
 });
 
 test("handleComboChat weighted strategy falls back to uniform random when all weights are zero", async () => {
+  const originalRandom = Math.random;
   const calls: any[] = [];
-  _setSecureRandomFloatSource(() => 0.75);
+  Math.random = () => 0.75;
 
   try {
     const result = await handleComboChat({
@@ -564,15 +565,16 @@ test("handleComboChat weighted strategy falls back to uniform random when all we
     assert.equal(result.ok, true);
     assert.deepEqual(calls, ["model-b"]);
   } finally {
-    _setSecureRandomFloatSource(null);
+    Math.random = originalRandom;
   }
 });
 
 test("handleComboChat random strategy uses shuffled model order", async () => {
+  const originalRandom = Math.random;
   const calls: any[] = [];
   const sequence = [0.99, 0.0];
   let idx = 0;
-  _setSecureRandomFloatSource(() => sequence[idx++] ?? 0);
+  Math.random = () => sequence[idx++] ?? 0;
 
   try {
     await handleComboChat({
@@ -596,7 +598,7 @@ test("handleComboChat random strategy uses shuffled model order", async () => {
     assert.equal(calls.length, 1);
     assert.notEqual(calls[0], "model-a");
   } finally {
-    _setSecureRandomFloatSource(null);
+    Math.random = originalRandom;
   }
 });
 
@@ -625,6 +627,7 @@ test("handleComboChat fill-first explicitly preserves priority order", async () 
 });
 
 test("handleComboChat p2c selects the better of two random choices by metrics", async () => {
+  const originalRandom = Math.random;
   const calls: any[] = [];
   const sequence = [0.0, 0.0];
   let idx = 0;
@@ -639,7 +642,7 @@ test("handleComboChat p2c selects the better of two random choices by metrics", 
     latencyMs: 20,
     strategy: "p2c",
   });
-  _setSecureRandomFloatSource(() => sequence[idx++] ?? 0);
+  Math.random = () => sequence[idx++] ?? 0;
 
   try {
     await handleComboChat({
@@ -662,7 +665,7 @@ test("handleComboChat p2c selects the better of two random choices by metrics", 
 
     assert.deepEqual(calls, ["model-b"]);
   } finally {
-    _setSecureRandomFloatSource(null);
+    Math.random = originalRandom;
   }
 });
 
@@ -1644,8 +1647,9 @@ test("handleComboChat cost-optimized orders models by the cheapest configured in
 });
 
 test("handleComboChat weighted strategy resolves nested combos before falling back to the next weighted target", async () => {
+  const originalRandom = Math.random;
   const calls: any[] = [];
-  _setSecureRandomFloatSource(() => 0.01);
+  Math.random = () => 0.01;
 
   try {
     const result = await handleComboChat({
@@ -1683,7 +1687,7 @@ test("handleComboChat weighted strategy resolves nested combos before falling ba
     assert.equal(result.ok, true);
     assert.deepEqual(calls, ["model-a", "model-b"]);
   } finally {
-    _setSecureRandomFloatSource(null);
+    Math.random = originalRandom;
   }
 });
 
@@ -2978,8 +2982,8 @@ test("#3587 reasoning buffer is disabled without explicit model capability data"
   );
   assert.equal(
     resolveReasoningBufferedMaxTokens("openai/default-cap-reasoning", 100),
-    1100,
-    "explicit default-sized caps are treated as real capability data"
+    null,
+    "default-sized caps are treated as unknown because registry fallbacks use the same value"
   );
 });
 
