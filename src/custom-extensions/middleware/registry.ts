@@ -1,12 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { RouteClassification } from "@/server/authz/types";
+/**
+ * Custom authorization middleware for downstream fork customizations.
+ * These functions run during the authorization pipeline.
+ */
 
-export type CustomMiddleware = (args: {
-  request: NextRequest;
-  classification: RouteClassification;
-  requestId: string;
-}) => Promise<NextResponse | null> | NextResponse | null;
+export type CustomMiddleware = (
+  req: any,
+  res: any,
+  next: () => void
+) => Promise<void> | void;
 
 export const CUSTOM_MIDDLEWARE: CustomMiddleware[] = [
-  // Add custom middleware functions here
+  // Example:
+  // async (req, res, next) => { ... next(); }
 ];

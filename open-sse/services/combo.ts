@@ -4785,29 +4785,20 @@ async function handleRoundRobinCombo({
     (settings as Record<string, unknown> | null)?.stickyRoundRobinLimit
   );
   const stickyRoundRobinEnabled = stickyLimit > 1;
-  if (
-    !rrCounters.has(combo.name) &&
-    !rrStickyTargets.has(combo.name) &&
-    rrCounters.size >= MAX_RR_COUNTERS
-  ) {
-    const oldest = rrCounters.keys().next().value;
-    if (oldest !== undefined) {
-      rrCounters.delete(oldest);
-      rrStickyTargets.delete(oldest);
-    }
-  }
-  // Ensure rrCounters has an entry for this combo so the eviction logic above
-  // applies to both maps even when sticky round-robin is enabled (in which
-  // case rrCounters isn't incremented per request).
-  if (!rrCounters.has(combo.name)) {
-    rrCounters.set(combo.name, 0);
-  }
   const { startIndex, counter } = getStickyRoundRobinStartIndex(
     combo.name,
     filteredTargets,
     stickyLimit
   );
+
   if (!stickyRoundRobinEnabled) {
+    if (rrCounters.size >= MAX_RR_COUNTERS && !rrCounters.has(combo.name)) {
+      const oldest = rrCounters.keys().next().value;
+      if (oldest !== undefined) {
+        rrCounters.delete(oldest);
+        rrStickyTargets.delete(oldest);
+      }
+    }
     rrCounters.set(combo.name, counter + 1);
   }
 

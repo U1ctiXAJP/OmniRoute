@@ -1,17 +1,16 @@
-import { ResolvedComboTarget } from "@omniroute/open-sse/services/combo.ts";
+/**
+ * Custom routing strategies for downstream fork customizations.
+ * Implement your custom target reordering or filtering logic here.
+ */
 
 export type CustomStrategyExecutor = (args: {
-  targets: ResolvedComboTarget[];
+  targets: any[];
   comboName: string;
-  body: Record<string, unknown>;
-  log: {
-    info: (...args: unknown[]) => void;
-    warn: (...args: unknown[]) => void;
-    debug: (...args: unknown[]) => void;
-    error?: (...args: unknown[]) => void;
-  };
-}) => ResolvedComboTarget[] | Promise<ResolvedComboTarget[]>;
+  body: Record<string, any>;
+  log: any;
+}) => Promise<any[]> | any[];
 
 export const CUSTOM_STRATEGIES: Record<string, CustomStrategyExecutor> = {
-  // Add custom strategies here
+  // Example:
+  // "my-custom-strategy": ({ targets }) => targets.reverse(),
 };
