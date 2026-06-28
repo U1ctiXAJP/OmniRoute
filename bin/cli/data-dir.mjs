@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -18,24 +17,11 @@ function safeHomeDir() {
   }
 }
 
-export function getLegacyDotDataDir(homeDir = safeHomeDir()) {
-  return path.join(homeDir, `.${APP_NAME}`);
-}
+export function resolveDataDir() {
+  const configured = normalizeConfiguredPath(process.env.DATA_DIR);
+  if (configured) return configured;
 
-export function getDefaultDataDir() {
   const homeDir = safeHomeDir();
-  const legacyDir = getLegacyDotDataDir(homeDir);
-
-  if (fs.existsSync(legacyDir)) {
-    try {
-      if (fs.statSync(legacyDir).isDirectory()) {
-        return legacyDir;
-      }
-    } catch {
-      // Ignore stat errors and continue to the platform default.
-    }
-  }
-
   if (process.platform === "win32") {
     const appData = process.env.APPDATA || path.join(homeDir, "AppData", "Roaming");
     return path.join(appData, APP_NAME);
@@ -44,14 +30,7 @@ export function getDefaultDataDir() {
   const xdgConfigHome = normalizeConfiguredPath(process.env.XDG_CONFIG_HOME);
   if (xdgConfigHome) return path.join(xdgConfigHome, APP_NAME);
 
-  return legacyDir;
-}
-
-export function resolveDataDir() {
-  const configured = normalizeConfiguredPath(process.env.DATA_DIR);
-  if (configured) return configured;
-
-  return getDefaultDataDir();
+  return path.join(homeDir, `.${APP_NAME}`);
 }
 
 export function resolveStoragePath(dataDir = resolveDataDir()) {

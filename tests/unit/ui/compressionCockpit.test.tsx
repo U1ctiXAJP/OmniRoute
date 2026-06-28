@@ -46,12 +46,6 @@ function mount(ui: React.ReactElement): HTMLElement {
   return container;
 }
 
-function click(el: Element | null): void {
-  act(() => {
-    el?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  });
-}
-
 beforeEach(() => {
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -151,31 +145,5 @@ describe("CompressionCockpit", () => {
     // Replay button present
     const text = container.textContent ?? "";
     expect(text).toContain("Replay");
-  });
-
-  it("offers a Canvas/Waterfall view toggle", () => {
-    const container = mount(<CompressionCockpit run={SAMPLE_RUN} />);
-    expect(container.querySelector("[data-testid='cockpit-view-canvas']")).toBeTruthy();
-    expect(container.querySelector("[data-testid='cockpit-view-waterfall']")).toBeTruthy();
-  });
-
-  it("switches to the waterfall inspector and back to the canvas", () => {
-    const container = mount(<CompressionCockpit run={SAMPLE_RUN} />);
-    // Default view is the ReactFlow canvas, waterfall hidden.
-    expect(container.querySelector(".react-flow")).toBeTruthy();
-    expect(container.querySelector("[data-testid='waterfall-inspector']")).toBeFalsy();
-
-    // Switch to the waterfall (A1) view — the previously-orphan component is now reachable.
-    click(container.querySelector("[data-testid='cockpit-view-waterfall']"));
-    expect(container.querySelector("[data-testid='waterfall-inspector']")).toBeTruthy();
-    expect(container.querySelector(".react-flow")).toBeFalsy();
-    expect(
-      container.querySelector("[data-testid='waterfall-total-savings']")?.textContent
-    ).toContain("51.2");
-
-    // Switch back to the canvas.
-    click(container.querySelector("[data-testid='cockpit-view-canvas']"));
-    expect(container.querySelector(".react-flow")).toBeTruthy();
-    expect(container.querySelector("[data-testid='waterfall-inspector']")).toBeFalsy();
   });
 });

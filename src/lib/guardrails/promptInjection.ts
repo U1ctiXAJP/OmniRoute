@@ -1,9 +1,5 @@
 import { BaseGuardrail, type GuardrailContext, type GuardrailResult } from "./base";
-import {
-  MAX_INJECTION_SCAN_BYTES,
-  extractMessageContents,
-  sanitizeRequest,
-} from "@/shared/utils/inputSanitizer";
+import { extractMessageContents, sanitizeRequest } from "@/shared/utils/inputSanitizer";
 import { getFeatureFlagOverride } from "@/lib/db/featureFlags";
 
 type Detection = {
@@ -187,15 +183,7 @@ export function evaluatePromptInjection(
     warn() {},
   } as Console);
   const contents = extractMessageContents(body);
-  // Bound the custom-pattern scan to the first 16 KB, matching detectInjection's
-  // cap inside sanitizeRequest above (hot-path perf, #3932 / #4041). Injection
-  // directives sit near the top; scanning the full join buys only CPU/GC.
-  const joinedContents = contents.join("\n");
-  const scanText =
-    joinedContents.length > MAX_INJECTION_SCAN_BYTES
-      ? joinedContents.slice(0, MAX_INJECTION_SCAN_BYTES)
-      : joinedContents;
-  const customDetections = detectWithPatterns(scanText, patterns);
+  const customDetections = detectWithPatterns(contents.join("\n"), patterns);
   const existingDetections = new Set(
     sanitizerResult.detections.map((d: Detection) => `${d.pattern}:${d.match}:${d.severity}`)
   );

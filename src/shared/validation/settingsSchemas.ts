@@ -290,13 +290,6 @@ export const updateSettingsSchema = z.object({
   visionBridgeMaxImages: z.number().int().min(1).max(20).optional(),
   // Missing settings
   lkgpEnabled: z.boolean().optional(),
-  // #1311: echo the requested alias/combo name in the response model field (opt-in)
-  echoRequestedModelName: z.boolean().optional(),
-  // #4481 layer 2: CCR-style Router.webSearch — when a request carries a native
-  // web_search server tool, route the whole request to this model/provider instead of
-  // the default (for providers that don't implement Anthropic's web_search server tool).
-  // Empty/unset = disabled. Value is a model string ("provider,model" / alias / combo).
-  webSearchRouteModel: z.string().max(200).optional(),
   backgroundDegradation: z.unknown().optional(),
   bruteForceProtection: z.boolean().optional(),
   // Auto-routing settings
@@ -400,7 +393,7 @@ export const databaseSettingsSchema = z
         .or(z.literal("monthly")),
       vacuumHour: z.number().int().min(0).max(23),
       pageSize: z.number().multipleOf(512).min(512).max(65536),
-      cacheSize: z.number().int().positive().max(1000000),
+      cacheSize: z.number().int().min(-1000000).max(1000000),
       optimizeOnStartup: z.boolean(),
     }),
 

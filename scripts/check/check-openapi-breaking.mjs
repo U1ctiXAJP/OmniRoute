@@ -2,7 +2,7 @@
 // scripts/check/check-openapi-breaking.mjs
 // Catraca de breaking-change na API pública (Fase 8 B.4 — backlog opcional).
 //
-// Diffa a spec do PR (docs/openapi.yaml na working tree = HEAD) contra
+// Diffa a spec do PR (docs/reference/openapi.yaml na working tree = HEAD) contra
 // a MESMA spec no branch base, via `oasdiff breaking`. Pega regressões de contrato:
 // endpoint removido, parâmetro novo obrigatório, campo de resposta removido, enum
 // estreitado, etc. — mudanças que quebram clientes existentes.
@@ -29,14 +29,13 @@
 // neste repo: report → ratchet → block).
 //
 // Base ref:
-//   • CI passa BASE_REF=${{ github.base_ref }} (ex.: "release/vX.Y.Z").
-//   • Local: default derivado da versão do package.json (releaseBranchForVersion),
-//     ex.: package 3.8.29 → "origin/release/v3.8.29" — nunca fica stale entre ciclos.
-// A spec base é extraída com `git show <BASE_REF>:docs/openapi.yaml`.
+//   • CI passa BASE_REF=${{ github.base_ref }} (ex.: "release/v3.8.27").
+//   • Local: default origin/release/v3.8.27.
+// A spec base é extraída com `git show <BASE_REF>:docs/reference/openapi.yaml`.
 //
 // Uso:
 //   node scripts/check/check-openapi-breaking.mjs
-//   BASE_REF=origin/release/vX.Y.Z node scripts/check/check-openapi-breaking.mjs
+//   BASE_REF=origin/release/v3.8.27 node scripts/check/check-openapi-breaking.mjs
 //   node scripts/check/check-openapi-breaking.mjs --json    # imprime JSON bruto do oasdiff
 //   node scripts/check/check-openapi-breaking.mjs --quiet   # suprime logs de diagnóstico
 //   node scripts/check/check-openapi-breaking.mjs --ratchet # falha (exit 1) numa regressão
@@ -52,37 +51,9 @@ const QUIET = process.argv.includes("--quiet");
 const PRINT_JSON = process.argv.includes("--json");
 const RATCHET = process.argv.includes("--ratchet");
 
-const SPEC_REL = "docs/openapi.yaml";
-const SPEC_PATH = path.join(ROOT, "docs", "openapi.yaml");
-
-/**
- * Deriva o branch base de release a partir de uma versão semver
- * (ex.: "3.8.29" → "origin/release/v3.8.29"). Mantém o default sincronizado com
- * o ciclo de release SEM hard-code: o version-bump atualiza package.json a cada
- * ciclo, então o default nunca fica stale (era "origin/release/v3.8.27" fixo).
- * Ignora sufixos de prerelease/build (ex.: "3.8.29-dev.2" → v3.8.29).
- *
- * @param {string|null|undefined} version
- * @returns {string|null} branch base (sem `origin/` ausente) ou null se não-semver
- */
-export function releaseBranchForVersion(version) {
-  const m = String(version ?? "")
-    .trim()
-    .match(/^(\d+)\.(\d+)\.(\d+)/);
-  return m ? `origin/release/v${m[1]}.${m[2]}.${m[3]}` : null;
-}
-
-function readPackageVersion() {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).version;
-  } catch {
-    return null;
-  }
-}
-
-// CI sempre passa BASE_REF=${{ github.base_ref }} e vence; este default só vale
-// para runs locais. Derivado da versão para não re-driftar a cada release.
-const DEFAULT_BASE_REF = releaseBranchForVersion(readPackageVersion()) || "origin/release/v3.8.29";
+const SPEC_REL = "docs/reference/openapi.yaml";
+const SPEC_PATH = path.join(ROOT, "docs", "reference", "openapi.yaml");
+const DEFAULT_BASE_REF = "origin/release/v3.8.27";
 const BASELINE_PATH = path.join(ROOT, "config/quality/quality-baseline.json");
 
 // ---------------------------------------------------------------------------

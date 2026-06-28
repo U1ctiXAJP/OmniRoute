@@ -5,7 +5,6 @@ import { isAuthRequired, isAuthenticated } from "@/shared/utils/apiAuth";
 import { runJsonMigration, type LegacyJsonData } from "@/lib/db/jsonMigration";
 import { getSettings } from "@/lib/db/settings";
 import { setSystemPromptConfig } from "@omniroute/open-sse/services/systemPrompt.ts";
-import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 
 /**
  * POST /api/settings/import-json
@@ -89,9 +88,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("[API] Error importing JSON backup:", err);
-    return NextResponse.json(
-      { error: sanitizeErrorMessage(err instanceof Error ? err.message : String(err)) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

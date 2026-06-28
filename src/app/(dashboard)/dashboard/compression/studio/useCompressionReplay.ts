@@ -27,31 +27,28 @@ export interface UseCompressionReplayReturn {
 
 const BASE_STEP_MS = 400;
 
-/** Interval (ms) between frames for a given speed. Exported as a unit-test seam. */
-export function stepMs(speed: ReplaySpeed): number {
+function stepMs(speed: ReplaySpeed): number {
   return Math.round(BASE_STEP_MS / speed);
 }
 
 // ── Reducer ───────────────────────────────────────────────────────────────
-// `ReplayState`, `ReplayAction`, `INITIAL_STATE` and `replayReducer` are exported
-// purely as unit-test seams (the state machine is otherwise driven only via the hook).
 
-export interface ReplayState {
+interface ReplayState {
   frameIndex: number; // -1 = not started
   isPlaying: boolean;
   speed: ReplaySpeed;
 }
 
-export type ReplayAction =
+type ReplayAction =
   | { type: "RESET" }
   | { type: "PLAY"; frameIndex?: number }
   | { type: "PAUSE" }
   | { type: "TICK"; totalFrames: number }
   | { type: "SET_SPEED"; speed: ReplaySpeed };
 
-export const INITIAL_STATE: ReplayState = { frameIndex: -1, isPlaying: false, speed: 1 };
+const INITIAL_STATE: ReplayState = { frameIndex: -1, isPlaying: false, speed: 1 };
 
-export function replayReducer(state: ReplayState, action: ReplayAction): ReplayState {
+function replayReducer(state: ReplayState, action: ReplayAction): ReplayState {
   switch (action.type) {
     case "RESET":
       return { ...state, frameIndex: -1, isPlaying: false };
@@ -167,10 +164,6 @@ export function useCompressionReplay(
 
   const handleSetSpeed = useCallback(
     (s: ReplaySpeed) => {
-      // Update the cadence ref synchronously: startTick() below reads speedRef.current
-      // immediately, but the syncing effect only runs after render — too late for this
-      // in-flight restart. Without this, changing speed mid-play kept the old cadence.
-      speedRef.current = s;
       dispatch({ type: "SET_SPEED", speed: s });
       if (isPlaying) startTick();
     },

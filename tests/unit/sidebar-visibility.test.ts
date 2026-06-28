@@ -46,7 +46,6 @@ test("primary sidebar items place limits after cache", () => {
       "quota",
       "costs-quota-share",
       "context-settings",
-      "context-combos",
       "context-caveman",
       "context-rtk",
       "context-headroom",
@@ -56,6 +55,7 @@ test("primary sidebar items place limits after cache", () => {
       "context-lite",
       "context-aggressive",
       "context-ultra",
+      "context-combos",
       "compression-studio",
       "cli-code",
       "cli-agents",
@@ -81,7 +81,6 @@ test("context sidebar section sits between primary and cli", () => {
       .map((item) => ({ id: item.id, href: item.href })),
     [
       { id: "context-settings", href: "/dashboard/context/settings" },
-      { id: "context-combos", href: "/dashboard/context/combos" },
       { id: "context-caveman", href: "/dashboard/context/caveman" },
       { id: "context-rtk", href: "/dashboard/context/rtk" },
       { id: "context-headroom", href: "/dashboard/context/headroom" },
@@ -91,6 +90,7 @@ test("context sidebar section sits between primary and cli", () => {
       { id: "context-lite", href: "/dashboard/context/lite" },
       { id: "context-aggressive", href: "/dashboard/context/aggressive" },
       { id: "context-ultra", href: "/dashboard/context/ultra" },
+      { id: "context-combos", href: "/dashboard/context/combos" },
     ]
   );
 });

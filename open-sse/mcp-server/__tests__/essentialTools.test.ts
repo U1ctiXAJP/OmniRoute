@@ -1,7 +1,7 @@
 /**
  * Unit tests for MCP Essential Tools (Phase 1)
  *
- * Tests all 10 essential tool handlers via the tool handler functions.
+ * Tests all 9 essential tool handlers via the tool handler functions.
  * The omniroute_web_search tests use InMemoryTransport + Client to exercise
  * the actual registered handler (not mockFetch directly).
  */
@@ -22,9 +22,9 @@ describe("MCP Essential Tools", () => {
   });
 
   describe("Tool schema validation", () => {
-    it("should have exactly 10 essential tools (includes web_search + web_fetch)", () => {
+    it("should have exactly 9 essential tools (includes web_search)", () => {
       const schemas = MCP_ESSENTIAL_TOOLS;
-      expect(schemas).toHaveLength(10);
+      expect(schemas).toHaveLength(9);
     });
 
     it("all tools should have omniroute_ prefix", () => {

@@ -46,9 +46,9 @@ afterEach(() => {
 });
 
 describe("Studio route pages (Tela A / Tela B wiring)", () => {
-  it("Compression Studio page mounts and shows the Play tab by default", () => {
+  it("Compression Studio page mounts and shows the empty state without live data", () => {
     const container = mount(<CompressionStudioPage />);
-    expect(container.querySelector('[data-testid="play-input"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="compression-cockpit-empty"]')).toBeTruthy();
   });
 
   it("Combo Live Studio page mounts the studio shell without live data", () => {

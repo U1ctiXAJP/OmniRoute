@@ -3,7 +3,6 @@
   "allowed": [
     "@atjsh/llmlingua-2",
     "@aws-sdk/client-bedrock-runtime",
-    "@axe-core/playwright",
     "@cyclonedx/cyclonedx-npm",
     "@dnd-kit/core",
     "@dnd-kit/sortable",
@@ -39,7 +38,6 @@
     "better-sqlite3",
     "bottleneck",
     "c8",
-    "clsx",
     "commander",
     "concurrently",
     "cross-env",
@@ -108,7 +106,6 @@
     "socks",
     "sql.js",
     "sqlite-vec",
-    "tailwind-merge",
     "tailwindcss",
     "tls-client-node",
     "tsup",

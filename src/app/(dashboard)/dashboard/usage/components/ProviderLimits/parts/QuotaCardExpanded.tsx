@@ -25,7 +25,6 @@ interface Props {
   quotas: any[];
   loading: boolean;
   error: string | null;
-  message?: string | null;
   refreshedAt?: string;
   hasStaleData: boolean;
   onRefresh: () => void;
@@ -110,7 +109,6 @@ export default function QuotaCardExpanded({
   quotas,
   loading,
   error,
-  message,
   refreshedAt,
   hasStaleData,
   onRefresh,
@@ -144,10 +142,6 @@ export default function QuotaCardExpanded({
         <div className="text-[11px] text-red-500 flex items-start gap-1.5">
           <span className="material-symbols-outlined text-[13px]">error</span>
           <span>{error}</span>
-        </div>
-      ) : quotas.length === 0 && message ? (
-        <div className="text-[11px] text-text-muted italic" title={message}>
-          {message}
         </div>
       ) : quotas.length === 0 ? (
         <div className="text-[11px] text-text-muted italic">{t("noQuotaData")}</div>

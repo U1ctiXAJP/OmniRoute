@@ -15,12 +15,9 @@ import { getClientIpFromRequest } from "../ipUtils";
 import {
   getAppLogRetentionDays,
   getCallLogRetentionDays,
-  getAppLogRetentionDaysOverride,
-  getCallLogRetentionDaysOverride,
   getCallLogsTableMaxRows,
   getProxyLogsTableMaxRows,
 } from "../logEnv";
-import { getUserDatabaseSettings } from "../db/databaseSettings";
 import { generateRequestId, getRequestId } from "@/shared/utils/requestId";
 import { HIGH_LEVEL_ACTIONS } from "@/lib/audit/highLevelActions";
 
@@ -486,30 +483,8 @@ export async function cleanupExpiredLogs() {
     };
   }
 
-  // #4354: retention precedence is explicit env override > dashboard DB setting > 7-day
-  // default. Previously this path always used the env default (7d), silently overriding a
-  // configured dashboard "Data Retention" (e.g. 90d) on every startup and trimming
-  // usage_history before the dashboard-based runAutoCleanup() could run. We now honor the
-  // dashboard retention per table when the operator did not set the env var, while still
-  // letting an explicit env var win (and falling back to env for non-DB deployments).
-  const callOverride = getCallLogRetentionDaysOverride();
-  const appOverride = getAppLogRetentionDaysOverride();
-  let dbRetention: { usageHistory: number; callLogs: number; mcpAudit: number } | null = null;
-  try {
-    const r = getUserDatabaseSettings().retention;
-    dbRetention = { usageHistory: r.usageHistory, callLogs: r.callLogs, mcpAudit: r.mcpAudit };
-  } catch {
-    /* settings table unavailable (e.g. very early startup) — keep env fallback */
-  }
-  const usageHistoryRetentionDays = callOverride ?? dbRetention?.usageHistory ?? callRetentionDays;
-  const callLogRetentionDays = callOverride ?? dbRetention?.callLogs ?? callRetentionDays;
-  const mcpAuditRetentionDays = appOverride ?? dbRetention?.mcpAudit ?? appRetentionDays;
-
-  const day = 24 * 60 * 60 * 1000;
-  const usageCutoff = new Date(Date.now() - usageHistoryRetentionDays * day).toISOString();
-  const callCutoff = new Date(Date.now() - callLogRetentionDays * day).toISOString();
-  const appCutoff = new Date(Date.now() - appRetentionDays * day).toISOString();
-  const mcpCutoff = new Date(Date.now() - mcpAuditRetentionDays * day).toISOString();
+  const callCutoff = new Date(Date.now() - callRetentionDays * 24 * 60 * 60 * 1000).toISOString();
+  const appCutoff = new Date(Date.now() - appRetentionDays * 24 * 60 * 60 * 1000).toISOString();
 
   let deletedUsage = 0;
   let deletedCallLogs = 0;
@@ -521,7 +496,7 @@ export async function cleanupExpiredLogs() {
   let trimmedProxyLogs = 0;
 
   try {
-    const r1 = db.prepare("DELETE FROM usage_history WHERE timestamp < ?").run(usageCutoff);
+    const r1 = db.prepare("DELETE FROM usage_history WHERE timestamp < ?").run(callCutoff);
     deletedUsage = r1.changes;
   } catch {
     /* table may not exist */
@@ -557,7 +532,7 @@ export async function cleanupExpiredLogs() {
   }
 
   try {
-    const r6 = db.prepare("DELETE FROM mcp_tool_audit WHERE created_at < ?").run(mcpCutoff);
+    const r6 = db.prepare("DELETE FROM mcp_tool_audit WHERE created_at < ?").run(appCutoff);
     deletedMcpAuditLogs = r6.changes;
   } catch {
     /* table may not exist */

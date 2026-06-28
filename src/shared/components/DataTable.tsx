@@ -69,7 +69,7 @@ export default function DataTable({
           alignItems: "center",
           justifyContent: "center",
           padding: "48px 24px",
-          color: "var(--color-text-muted)",
+          color: "var(--text-secondary, #888)",
           fontSize: "14px",
         }}
       >
@@ -89,7 +89,7 @@ export default function DataTable({
           alignItems: "center",
           justifyContent: "center",
           padding: "48px 24px",
-          color: "var(--color-text-muted)",
+          color: "var(--text-secondary, #888)",
           fontSize: "14px",
         }}
       >
@@ -100,16 +100,7 @@ export default function DataTable({
   }
 
   return (
-    <div
-      style={{
-        overflow: "auto",
-        maxHeight,
-        borderRadius: "8px",
-        // Opaque surface so the body grid wallpaper never bleeds through the
-        // transparent even-rows / low-alpha zebra when the table renders card-less.
-        background: "var(--color-surface)",
-      }}
-    >
+    <div style={{ overflow: "auto", maxHeight, borderRadius: "8px" }}>
       <table
         style={{
           width: "100%",
@@ -127,11 +118,11 @@ export default function DataTable({
                   padding: "8px 10px",
                   textAlign: "left",
                   fontWeight: 600,
-                  color: "var(--color-text-muted)",
-                  borderBottom: "1px solid var(--color-border)",
+                  color: "var(--text-secondary, #888)",
+                  borderBottom: "1px solid rgba(255,255,255,0.08)",
                   position: "sticky",
                   top: 0,
-                  background: "var(--table-header-bg)",
+                  background: "var(--bg-table-header, rgba(15,15,25,0.95))",
                   zIndex: 1,
                   whiteSpace: "nowrap",
                   fontSize: "11px",
@@ -153,21 +144,21 @@ export default function DataTable({
                 cursor: onRowClick ? "pointer" : "default",
                 background:
                   row.id === selectedId
-                    ? "var(--table-row-selected)"
+                    ? "rgba(99,102,241,0.1)"
                     : idx % 2 === 0
                       ? "transparent"
-                      : "var(--table-row-zebra)",
+                      : "rgba(255,255,255,0.02)",
                 transition: "background 0.15s",
               }}
               onMouseEnter={(e) => {
                 if (row.id !== selectedId) {
-                  e.currentTarget.style.background = "var(--table-row-hover)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (row.id !== selectedId) {
                   e.currentTarget.style.background =
-                    idx % 2 === 0 ? "transparent" : "var(--table-row-zebra)";
+                    idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)";
                 }
               }}
             >
@@ -176,7 +167,7 @@ export default function DataTable({
                   key={col.key}
                   style={{
                     padding: "6px 10px",
-                    borderBottom: "1px solid var(--table-cell-border)",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
                     whiteSpace: "nowrap",
                     maxWidth: col.maxWidth || "200px",
                     overflow: "hidden",

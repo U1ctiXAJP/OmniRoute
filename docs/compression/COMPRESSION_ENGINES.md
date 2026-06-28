@@ -116,7 +116,7 @@ override points it at a local copy instead (offline / air-gapped installs).
 
 ### Optional dependencies & on-demand install
 
-The prunable LLMLingua runtime peer stack is **optional**. Three packages are declared as
+The LLMLingua runtime stack is **optional**. Three packages are declared as
 `optionalDependencies` in `package.json` and kept **external** by the production build
 (`scripts/build/prepublish.ts` does not bundle them):
 
@@ -126,12 +126,9 @@ The prunable LLMLingua runtime peer stack is **optional**. Three packages are de
 | `@tensorflow/tfjs`   | `4.22.0`      | Heaviest dep — dominates the ~800 MB footprint |
 | `js-tiktoken`        | `^1.0.20`     | Tokenizer                                      |
 
-`@huggingface/transformers` is pinned at `3.5.2` as an **optional** dependency (shared with
-the local embeddings path and also traced into the standalone bundle). Keeping it optional prevents
-`onnxruntime-node` CUDA provider postinstall failures on CUDA 11 hosts from aborting the whole
-OmniRoute install; when the optional stack is absent, LLMLingua still fail-opens. Only the three
-packages above are prunable SLM peers. A standard `npm install` (dev) installs the optional stack
-automatically unless optional dependencies are omitted.
+`@huggingface/transformers` is pinned at `3.5.2` as a **regular** dependency (shared with
+the local embeddings path), so it always ships — only the three packages above are
+prunable. A standard `npm install` (dev) installs them automatically.
 
 **Why on-demand:** the npm-published package, the standalone bundle, and the Docker image
 ship **without** these deps to stay slim. When they are absent, the worker's dependency
@@ -286,25 +283,6 @@ Compression exposes five MCP tools:
 | `omniroute_set_compression_engine`  | `write:compression` | Set mode and optional pipeline   |
 | `omniroute_list_compression_combos` | `read:compression`  | List compression combos          |
 | `omniroute_compression_combo_stats` | `read:compression`  | Read combo/engine analytics      |
-
-## Known limitations
-
-- **LLMLingua-2 (SLM) requires co-located optional deps.** The worker only runs in a
-  production build when `@atjsh/llmlingua-2` + peers are co-located into
-  `dist/node_modules` (see `scripts/build/colocateOptionals.mjs`, #4286). Without them the
-  engine fail-opens (returns the original text). Worker resolution no longer depends on
-  `import.meta.url` (it dies in the standalone bundle) — it anchors on the runtime
-  cwd / `argv[1]`.
-- **Caveman language packs `de` / `fr` / `ja` are partial.** They ship `context` +
-  `filler` + `structural` rules but no `dedup` / `ultra` packs, so `ultra` intensity is
-  no stronger than `full` for those languages (they use only their own rules — there is no
-  silent fall-back to the English `dedup`/`ultra` rules, which would mangle foreign text).
-  `en` / `es` / `id` / `pt-BR` are complete. Contributions of `dedup.json` + `ultra.json`
-  for the partial packs are welcome.
-- **Stacked telemetry only lists engines that compressed.** A stacked-pipeline step whose
-  engine ran but produced 0 % savings returns `stats:null` and so does not appear in
-  `engineBreakdown` — indistinguishable from a step that was skipped. Distinguishing
-  "ran, 0 %" from "skipped" would require a breakdown-model change and is deferred.
 
 ## Validation
 

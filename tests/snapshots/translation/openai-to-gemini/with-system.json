@@ -10,11 +10,8 @@
     }
   ],
   "generationConfig": {
-    "temperature": 0.7,
-    "thinkingConfig": {
-      "includeThoughts": true,
-      "thinkingBudget": 24576
-    }
+    "maxOutputTokens": 8192,
+    "temperature": 0.7
   },
   "model": "gemini-2.5-pro",
   "safetySettings": [

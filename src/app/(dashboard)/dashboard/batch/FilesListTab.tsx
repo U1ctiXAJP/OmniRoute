@@ -19,6 +19,7 @@ function relativeTime(ts: number): string {
   return `${diffDays}d ago`;
 }
 
+
 interface FileRecord {
   id: string;
   filename: string;
@@ -161,7 +162,7 @@ export default function FilesListTab({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto overflow-y-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="overflow-x-auto overflow-y-hidden rounded-xl border border-[var(--color-border)]">
         <table className="w-full text-sm" role="table" aria-label={t("batchFilesListFilesTable")}>
           <thead>
             <tr className="bg-[var(--color-bg-alt)] border-b border-[var(--color-border)]">
@@ -321,7 +322,11 @@ export default function FilesListTab({
                             void handleDeleteFile(file);
                           }}
                           disabled={!canDelete || deletingId === file.id}
-                          title={canDelete ? t("filesListDelete") : "File in use by active batch"}
+                          title={
+                            canDelete
+                              ? t("filesListDelete")
+                              : "File in use by active batch"
+                          }
                           className="p-1.5 rounded text-[var(--color-text-muted)] hover:text-red-400 hover:bg-[var(--color-bg-alt)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <span className="material-symbols-outlined text-[16px]">

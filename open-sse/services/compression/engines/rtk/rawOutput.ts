@@ -19,14 +19,8 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
   [/\b(sk-[A-Za-z0-9_-]{16,})\b/g, "[REDACTED_OPENAI_KEY]"],
   [/\b(xox[baprs]-[A-Za-z0-9-]{16,})\b/g, "[REDACTED_SLACK_TOKEN]"],
   [/\b(AKIA[0-9A-Z]{16})\b/g, "[REDACTED_AWS_KEY]"],
-  // key=value / key: value for common credential field names (flat alternation — no nesting,
-  // so no ReDoS). Covers names the bare token/secret/password set misses (private_key, etc).
-  [
-    /((?:api[_-]?key|api[_-]?token|access[_-]?key|access[_-]?token|client[_-]?secret|auth[_-]?token|private[_-]?key|secret[_-]?key|credentials?|token|secret|password)\s*[:=]\s*)("[^"]+"|'[^']+'|[^\s]+)/gi,
-    "$1[REDACTED]",
-  ],
-  // Authorization / Proxy-Authorization with Bearer OR Basic (curl -v emits Basic <base64>).
-  [/((?:Proxy-)?Authorization:\s*(?:Bearer|Basic)\s+)[A-Za-z0-9._~+/-]+=*/gi, "$1[REDACTED]"],
+  [/((?:api[_-]?key|token|secret|password)\s*[:=]\s*)("[^"]+"|'[^']+'|[^\s]+)/gi, "$1[REDACTED]"],
+  [/(Authorization:\s*Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, "$1[REDACTED]"],
 ];
 
 function dataDir(): string {
@@ -95,14 +89,8 @@ export function maybePersistRtkRawOutput(
   const id = safeId(`${now}:${commandSlug}:${raw.length}:${redaction.text}`);
   const dir = path.join(dataDir(), "rtk", "raw-output");
   const filePath = path.join(dir, `${now}-${commandSlug || "tool-output"}-${id}.log`);
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(filePath, redaction.text);
-  } catch {
-    // Best-effort capture: a disk error (ENOSPC / EACCES / read-only DATA_DIR) must NEVER
-    // fail the compression pipeline. Skip the capture, exactly like retention "never".
-    return null;
-  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(filePath, redaction.text);
 
   // Sidecar metadata: the .log filename only carries a lossy command SLUG, so persist
   // the FULL command (and timestamp/flags) next to it. Keeps the .log pure output (the

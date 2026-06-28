@@ -71,7 +71,6 @@ export default function ProviderDetailPageClient() {
   const [codexCliGuideOpen, setCodexCliGuideOpen] = useState(false);
   const [importClaudeModalOpen, setImportClaudeModalOpen] = useState(false);
   const [importGeminiModalOpen, setImportGeminiModalOpen] = useState(false);
-  const [importGrokCliModalOpen, setImportGrokCliModalOpen] = useState(false);
   const isOpenAICompatible = isOpenAICompatibleProvider(providerId);
   const isCcCompatible = isClaudeCodeCompatibleProvider(providerId);
   const isCommandCode = providerId === "command-code";
@@ -521,7 +520,6 @@ export default function ProviderDetailPageClient() {
             onOpenImportCodex={() => setImportCodexModalOpen(true)}
             onOpenImportClaude={() => setImportClaudeModalOpen(true)}
             onOpenImportGemini={() => setImportGeminiModalOpen(true)}
-            onOpenImportGrokCli={() => setImportGrokCliModalOpen(true)}
             t={t}
           />
 
@@ -541,7 +539,6 @@ export default function ProviderDetailPageClient() {
               onOpenImportCodex={() => setImportCodexModalOpen(true)}
               onOpenImportClaude={() => setImportClaudeModalOpen(true)}
               onOpenImportGemini={() => setImportGeminiModalOpen(true)}
-              onOpenImportGrokCli={() => setImportGrokCliModalOpen(true)}
               t={t}
             />
           ) : (
@@ -743,7 +740,6 @@ export default function ProviderDetailPageClient() {
         setShowEditModal={setShowEditModal}
         selectedConnection={selectedConnection}
         handleUpdateConnection={handleUpdateConnection}
-        handleCompatibleImportWithProgress={handleCompatibleImportWithProgress}
         showEditNodeModal={showEditNodeModal}
         setShowEditNodeModal={setShowEditNodeModal}
         providerNode={providerNode}
@@ -762,8 +758,6 @@ export default function ProviderDetailPageClient() {
         handleApplyGeminiAuthLocal={handleApplyGeminiAuthLocal}
         importGeminiModalOpen={importGeminiModalOpen}
         setImportGeminiModalOpen={setImportGeminiModalOpen}
-        importGrokCliModalOpen={importGrokCliModalOpen}
-        setImportGrokCliModalOpen={setImportGrokCliModalOpen}
         batchTestResults={batchTestResults}
         setBatchTestResults={setBatchTestResults}
         emailsVisible={emailsVisible}

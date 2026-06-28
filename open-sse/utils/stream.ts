@@ -47,12 +47,6 @@ import {
   stripResponsesLifecycleEcho,
 } from "./responsesStreamHelpers.ts";
 import { processBufferedPassthroughLine } from "./passthroughTailProcessor.ts";
-import {
-  getAnyReasoningValue,
-  getReadableReasoningValue,
-  getUnsupportedReasoningValue,
-  hasUnsupportedReasoningSignal,
-} from "./reasoningFields.ts";
 
 /**
  * Race a response body read against a timeout.
@@ -1551,26 +1545,6 @@ export function createSSEStream(options: StreamOptions = {}) {
                   if (Array.isArray(parsed.choices) && parsed.choices.length === 0) {
                     const emptyChoicesUsage = extractUsage(parsed) ?? parsed.usage;
                     if (hasValidUsage(emptyChoicesUsage)) {
-                      // Some upstreams (e.g. Ollama Cloud) emit prompt_tokens: 0
-                      // even when input was sent — they simply don't count input
-                      // tokens.  When we have a non-zero output but zero input,
-                      // estimate the real input token count from the request body.
-                      if (
-                        emptyChoicesUsage &&
-                        typeof emptyChoicesUsage === "object" &&
-                        !Array.isArray(emptyChoicesUsage) &&
-                        emptyChoicesUsage.completion_tokens > 0
-                      ) {
-                        const pt = emptyChoicesUsage.prompt_tokens ?? 0;
-                        if (pt === 0) {
-                          const estimated = estimateUsage(body, totalContentLength, FORMATS.OPENAI);
-                          if (estimated?.prompt_tokens > 0) {
-                            emptyChoicesUsage.prompt_tokens = estimated.prompt_tokens;
-                            emptyChoicesUsage.total_tokens =
-                              (emptyChoicesUsage.total_tokens ?? 0) + estimated.prompt_tokens;
-                          }
-                        }
-                      }
                       usage = emptyChoicesUsage;
                       output = `data: ${JSON.stringify(parsed)}\n\n`;
                       injectedUsage = true;
@@ -1598,8 +1572,11 @@ export function createSSEStream(options: StreamOptions = {}) {
                     : false;
                   const hadNonStringTopLevelId =
                     parsed?.id != null && typeof parsed.id !== "string";
-                  const rawDelta = parsed.choices?.[0]?.delta;
-                  const hadReasoningAlias = hasUnsupportedReasoningSignal(rawDelta);
+                  const hadReasoningAlias = !!(
+                    parsed.choices?.[0]?.delta?.reasoning &&
+                    typeof parsed.choices[0].delta.reasoning === "string" &&
+                    !parsed.choices[0].delta.reasoning_content
+                  );
 
                   parsed = sanitizeStreamingChunk(parsed);
                   if (
@@ -1702,7 +1679,7 @@ export function createSSEStream(options: StreamOptions = {}) {
                     }
                   }
 
-                  const content = delta?.content;
+                  const content = delta?.content || delta?.reasoning_content;
                   if (typeof content === "string") {
                     totalContentLength += content.length;
 
@@ -1723,10 +1700,6 @@ export function createSSEStream(options: StreamOptions = {}) {
                       }
                     }
                   }
-                  const reasoningDelta = getReadableReasoningValue(delta);
-                  if (reasoningDelta) {
-                    totalContentLength += reasoningDelta.length;
-                  }
                   {
                     const guarded = applyTextualToolCallStreamingGuard(
                       parsed as Record<string, unknown>
@@ -1734,10 +1707,10 @@ export function createSSEStream(options: StreamOptions = {}) {
                     parsed = guarded.parsed as typeof parsed;
                     textualToolCallConverted = guarded.textualToolCallConverted;
                   }
-                  if (reasoningDelta)
+                  if (typeof delta?.reasoning_content === "string")
                     passthroughAccumulatedReasoning = appendBoundedText(
                       passthroughAccumulatedReasoning,
-                      reasoningDelta
+                      delta.reasoning_content
                     );
 
                   const extracted = extractUsage(parsed);
@@ -1798,12 +1771,7 @@ export function createSSEStream(options: StreamOptions = {}) {
                 }
 
                 clientPayload = parsed;
-              } catch {
-                // Skip non-JSON data lines silently — don't forward garbage to clients.
-                // Upstream providers sometimes return plain-text errors (HTML, rate-limit
-                // messages) in the SSE stream that would break downstream JSON decoders.
-                continue;
-              }
+              } catch {}
             }
 
             if (!injectedUsage) {
@@ -1906,24 +1874,23 @@ export function createSSEStream(options: StreamOptions = {}) {
               }
             }
           }
-          const openAiDelta = parsed.choices?.[0]?.delta;
-          const openAiReasoning = getReadableReasoningValue(openAiDelta);
-          if (openAiReasoning) {
-            totalContentLength += openAiReasoning.length;
-            if (state?.accumulatedContent !== undefined)
-              state.accumulatedContent = appendBoundedText(
-                state.accumulatedContent,
-                openAiReasoning
-              );
+          if (parsed.choices?.[0]?.delta?.reasoning_content) {
+            const r = parsed.choices[0].delta.reasoning_content;
+            if (typeof r === "string") {
+              totalContentLength += r.length;
+              if (state?.accumulatedContent !== undefined)
+                state.accumulatedContent = appendBoundedText(state.accumulatedContent, r);
+            }
           }
-          // Mirror only client-unsupported reasoning aliases into `reasoning_content`.
-          if (!openAiReasoning) {
-            const delta = openAiDelta;
-            const r = getUnsupportedReasoningValue(delta);
-            if (typeof r === "string" && r.length > 0) {
+          // Normalize `reasoning` alias → `reasoning_content` (NVIDIA kimi-k2.5 etc.)
+          if (
+            parsed.choices?.[0]?.delta?.reasoning &&
+            !parsed.choices?.[0]?.delta?.reasoning_content
+          ) {
+            const r = parsed.choices[0].delta.reasoning;
+            if (typeof r === "string") {
               parsed.choices[0].delta.reasoning_content = r;
-              delete parsed.choices[0].delta.thinking;
-              delete parsed.choices[0].delta.thought;
+              delete parsed.choices[0].delta.reasoning;
               totalContentLength += r.length;
               if (state?.accumulatedContent !== undefined)
                 state.accumulatedContent = appendBoundedText(state.accumulatedContent, r);
@@ -1970,7 +1937,7 @@ export function createSSEStream(options: StreamOptions = {}) {
           const translateHasContent =
             typeof parsed.delta?.text === "string" ||
             typeof parsed.choices?.[0]?.delta?.content === "string" ||
-            Boolean(getAnyReasoningValue(parsed.choices?.[0]?.delta));
+            typeof parsed.choices?.[0]?.delta?.reasoning_content === "string";
           if (translateHasContent && !contentAfterToolSeen) {
             const toolTs = toolFinishTime || pendingToolFinishTime;
             const lastChunkTs = lastToolCallChunkTime;

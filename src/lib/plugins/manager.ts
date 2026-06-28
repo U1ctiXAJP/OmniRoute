@@ -13,7 +13,7 @@ import { randomUUID } from "crypto";
 import { logger } from "../../../open-sse/utils/logger.ts";
 import { getDefaultPluginDir, scanPluginDir } from "./scanner";
 import { loadPlugin, type LoadedPlugin } from "./loader";
-import { registerHook, unregisterHooks, emitHook, type HookHandler, type Plugin } from "./hooks";
+import { registerHook, unregisterHooks, emitHook } from "./hooks";
 import {
   insertPlugin,
   getPluginByName,
@@ -27,17 +27,6 @@ import {
 import type { PluginManifestWithDefaults } from "./manifest";
 
 const log = logger("PLUGIN_MANAGER");
-
-type LifecycleHookName = Extract<
-  keyof Plugin,
-  | "onRequest"
-  | "onResponse"
-  | "onError"
-  | "onInstall"
-  | "onActivate"
-  | "onDeactivate"
-  | "onUninstall"
->;
 
 /**
  * Compare two semver strings. Returns positive if a > b, negative if a < b, 0 if equal.
@@ -396,7 +385,7 @@ class PluginManager {
     try {
       const loaded = await loadPlugin(entryPoint, manifest);
 
-      const hookNames: LifecycleHookName[] = [
+      const hookNames = [
         "onRequest",
         "onResponse",
         "onError",
@@ -408,7 +397,7 @@ class PluginManager {
       for (const hookName of hookNames) {
         const handler = loaded.plugin[hookName];
         if (typeof handler === "function") {
-          registerHook(hookName, name, handler as HookHandler);
+          registerHook(hookName, name, handler as (payload: unknown) => void | Promise<void>);
         }
       }
 

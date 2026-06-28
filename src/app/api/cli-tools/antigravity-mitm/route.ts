@@ -9,7 +9,6 @@ import { cliMitmStartSchema, cliMitmStopSchema } from "@/shared/validation/schem
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resolveApiKey } from "@/shared/services/apiKeyResolver";
 import { isRoot } from "@/mitm/systemCommands";
-import { isSudoPasswordRequired } from "@/mitm/dns/dnsConfig";
 
 // GET - Check MITM status
 export async function GET(request) {
@@ -19,21 +18,12 @@ export async function GET(request) {
   try {
     const { getMitmStatus, getCachedPassword } = await import("@/mitm/manager.runtime");
     const status = await getMitmStatus();
-    const isWin = process.platform === "win32";
-    const hasCachedPassword = !!getCachedPassword();
-    // Probe sudo availability so the UI can hide the password modal on hosts
-    // where it's unnecessary (Windows, root user, NOPASSWD sudoers, minimal
-    // containers without sudo). MITM elevation is decided by the server OS,
-    // not by the browser's user agent — see PR title.
-    const needsSudoPassword = !isWin && !hasCachedPassword && isSudoPasswordRequired();
     return NextResponse.json({
       running: status.running,
       pid: status.pid || null,
       dnsConfigured: status.dnsConfigured || false,
       certExists: status.certExists || false,
-      hasCachedPassword,
-      isWin,
-      needsSudoPassword,
+      hasCachedPassword: !!getCachedPassword(),
     });
   } catch (error) {
     console.log("Error getting MITM status:", sanitizeErrorMessage(error));
@@ -81,15 +71,12 @@ export async function POST(request) {
     const isRootUser = !isWin && isRoot();
     const pwd = sudoPassword || getCachedPassword() || "";
 
-    // Require a sudo password only when the OS actually needs one. Skips the
-    // prompt on Windows (UAC), root, NOPASSWD sudoers, and minimal containers
-    // without sudo on PATH (#822).
-    if (!isWin && !pwd && !isRootUser && isSudoPasswordRequired()) {
+    if (!isWin && !pwd && !isRootUser) {
       return NextResponse.json({ error: "Missing sudoPassword" }, { status: 400 });
     }
 
     const result = await startMitm(apiKey, pwd);
-    if (!isWin && pwd) setCachedPassword(pwd);
+    if (!isWin) setCachedPassword(pwd);
 
     return NextResponse.json({
       success: true,
@@ -137,10 +124,7 @@ export async function DELETE(request) {
     const isRootUser = !isWin && isRoot();
     const pwd = sudoPassword || getCachedPassword() || "";
 
-    // Require a sudo password only when the OS actually needs one. Skips the
-    // prompt on Windows (UAC), root, NOPASSWD sudoers, and minimal containers
-    // without sudo on PATH (#822).
-    if (!isWin && !pwd && !isRootUser && isSudoPasswordRequired()) {
+    if (!isWin && !pwd && !isRootUser) {
       return NextResponse.json({ error: "Missing sudoPassword" }, { status: 400 });
     }
 

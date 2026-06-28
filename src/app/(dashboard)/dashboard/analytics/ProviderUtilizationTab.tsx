@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useProviderNodeMap, resolveProviderName } from "@/lib/display/useProviderNodeMap";
 import {
   CartesianGrid,
   Legend,
@@ -92,7 +91,6 @@ function getLatestPoints(points: ProviderUtilizationPoint[]) {
 
 export default function ProviderUtilizationTab() {
   const t = useTranslations("analytics");
-  const nodeMap = useProviderNodeMap();
   const [range, setRange] = useState<UtilizationTimeRange>("24h");
   const [aggregateBy, setAggregateBy] = useState<"provider" | "connection">("provider");
   const [data, setData] = useState<ProviderUtilizationResponse | null>(null);
@@ -352,7 +350,7 @@ export default function ProviderUtilizationTab() {
                       key={provider}
                       type="monotone"
                       dataKey={provider}
-                      name={resolveProviderName(provider, nodeMap)}
+                      name={provider}
                       stroke={providerColors.get(provider) ?? "var(--color-primary)"}
                       strokeWidth={2.5}
                       dot={false}
@@ -376,9 +374,7 @@ export default function ProviderUtilizationTab() {
                           <ProviderIcon providerId={point.provider} size={22} />
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-text-main">
-                            {resolveProviderName(point.provider, nodeMap)}
-                          </p>
+                          <p className="text-sm font-semibold text-text-main">{point.provider}</p>
                           <p className="text-xs text-text-muted">
                             {t("providerUtilizationLatestSnapshot")}
                           </p>

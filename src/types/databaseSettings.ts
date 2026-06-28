@@ -118,7 +118,7 @@ export const DEFAULT_DATABASE_SETTINGS: Omit<DatabaseSettings, "location" | "sta
     scheduledVacuum: "weekly",
     vacuumHour: 2,
     pageSize: 4096,
-    cacheSize: 16384,
+    cacheSize: -2000,
     optimizeOnStartup: true,
   },
 };

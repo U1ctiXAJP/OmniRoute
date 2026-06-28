@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
 import { useScrapeFetch } from "../../hooks/useScrapeFetch";
 import ScrapeResult from "../ScrapeResult";
 import type { ConfigState } from "../SearchToolsConfigPane";
@@ -23,7 +22,6 @@ function isValidUrl(value: string): boolean {
 }
 
 export default function ScrapeTab({ configState, onMetrics }: ScrapeTabProps) {
-  const t = useTranslations("search");
   const [url, setUrl] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const { result, loading, error, latencyMs, fetch: doFetch, reset } = useScrapeFetch();
@@ -31,11 +29,11 @@ export default function ScrapeTab({ configState, onMetrics }: ScrapeTabProps) {
   const handleSubmit = async () => {
     setUrlError(null);
     if (!url.trim()) {
-      setUrlError(t("scrapeUrlRequired"));
+      setUrlError("URL é obrigatória");
       return;
     }
     if (!isValidUrl(url)) {
-      setUrlError(t("scrapeUrlInvalid"));
+      setUrlError("URL inválida — deve começar com http:// ou https://");
       return;
     }
     reset();
@@ -63,7 +61,7 @@ export default function ScrapeTab({ configState, onMetrics }: ScrapeTabProps) {
           htmlFor="scrape-url"
           className="block text-[10px] font-semibold text-text-muted uppercase tracking-wider"
         >
-          {t("scrapeUrl")}
+          URL para extrair conteúdo
         </label>
         <div className="flex gap-2">
           <input
@@ -87,7 +85,7 @@ export default function ScrapeTab({ configState, onMetrics }: ScrapeTabProps) {
             disabled={loading}
             data-testid="scrape-button"
           >
-            {loading ? t("scrapeExtracting") : t("scrapeExtract")}
+            {loading ? "Extraindo..." : "Extrair"}
           </button>
         </div>
 
@@ -153,11 +151,11 @@ export default function ScrapeTab({ configState, onMetrics }: ScrapeTabProps) {
           <span className="text-3xl mb-3" aria-hidden="true">
             📄
           </span>
-          <p className="text-sm text-text-muted mb-1">{t("scrapeEmptyState")}</p>
+          <p className="text-sm text-text-muted mb-1">Digite uma URL para extrair o conteúdo</p>
           <p className="text-xs text-text-muted">
-            {t("scrapeProvidersAvailable")}{" "}
+            Providers disponíveis: Firecrawl, Jina Reader, Tavily.{" "}
             <Link href="/dashboard/providers" className="text-accent hover:underline">
-              {t("configureProvider")}
+              Configurar →
             </Link>
           </p>
         </div>

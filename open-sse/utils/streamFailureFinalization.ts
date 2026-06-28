@@ -87,22 +87,16 @@ export function finalizeStreamRequestLog({
 
 export function createStreamFailureFinalizers({
   isFailureCompletionRecorded,
-  isStreamCompletionRecorded = () => false,
   onStreamComplete,
   persistFailureUsage,
   onStreamFailure,
 }: {
   isFailureCompletionRecorded: () => boolean;
-  isStreamCompletionRecorded?: () => boolean;
   onStreamComplete: (payload: StreamCompletionPayload) => void;
   persistFailureUsage: (status: number, errorCode?: string) => void;
   onStreamFailure?: ((failure: StreamFailurePayload) => void) | null;
 }) {
   const handleStreamFailure = (failure: StreamFailurePayload) => {
-    if (isStreamCompletionRecorded()) {
-      return true;
-    }
-
     const status = failure.status || HTTP_STATUS.BAD_GATEWAY;
     const message = failure.message || "Upstream stream error";
     const code = failure.code || failure.type || String(status);
@@ -130,42 +124,25 @@ export function createStreamFailureFinalizers({
     return true;
   };
 
-  const isClientClosedPipelineError = (message: string, statusCode: number) => {
-    const normalized = message.toLowerCase();
-    return (
-      statusCode === 499 ||
-      normalized.includes("responseaborted") ||
-      normalized.includes("controller is already closed") ||
-      normalized.includes("readablestream is closed") ||
-      normalized.includes("writablestream is closed") ||
-      normalized.includes("aborterror")
-    );
-  };
-
   let pipelineStreamFailureFinalized = false;
   const onPipelineStreamError: PipelineStreamErrorHandler = ({ message, statusCode }) => {
     if (pipelineStreamFailureFinalized) return true;
     pipelineStreamFailureFinalized = true;
 
-    const normalizedMessage = message || "Upstream stream error";
-    const clientClosed = isClientClosedPipelineError(normalizedMessage, statusCode);
-    const status = clientClosed
-      ? 499
-      : Number.isFinite(statusCode) && statusCode >= 400 && statusCode <= 599
+    const status =
+      Number.isFinite(statusCode) && statusCode >= 400 && statusCode <= 599
         ? statusCode
         : HTTP_STATUS.BAD_GATEWAY;
-    const code = clientClosed
-      ? "client_disconnected"
-      : normalizedMessage.toLowerCase().includes("terminated")
-        ? "stream_terminated"
-        : "stream_pipeline_error";
-    const type = clientClosed ? "client_disconnected" : "stream_error";
+    const normalizedMessage = message || "Upstream stream error";
+    const code = normalizedMessage.toLowerCase().includes("terminated")
+      ? "stream_terminated"
+      : "stream_pipeline_error";
 
     handleStreamFailure({
       status,
       message: normalizedMessage,
       code,
-      type,
+      type: "stream_error",
     });
     return true;
   };

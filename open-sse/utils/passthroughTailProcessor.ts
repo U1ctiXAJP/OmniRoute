@@ -7,7 +7,6 @@ import {
   stringifyIdValue,
   stripResponsesLifecycleEcho,
 } from "./responsesStreamHelpers.ts";
-import { getAnyReasoningValue } from "./reasoningFields.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -201,7 +200,12 @@ function handleOpenAiTailPayload(parsed: JsonRecord, context: PassthroughTailPro
     context.appendPassthroughContent(delta.content);
     context.addTotalContentLength(delta.content.length);
   }
-  const reasoningDelta = getAnyReasoningValue(delta);
+  const reasoningDelta =
+    typeof delta.reasoning_content === "string"
+      ? delta.reasoning_content
+      : typeof delta.reasoning === "string"
+        ? delta.reasoning
+        : "";
   if (reasoningDelta) {
     context.appendPassthroughReasoning(reasoningDelta);
   }
