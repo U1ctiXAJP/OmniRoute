@@ -4,28 +4,25 @@ import {
 } from "@omniroute/open-sse/config/embeddingRegistry.ts";
 import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
-import * as log from "@/sse/utils/logger";
-import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
 import { isRequireApiKeyEnabled } from "@/shared/utils/featureFlags";
 import { v1EmbeddingsSchema } from "@/shared/validation/schemas";
-import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 
 import { getAllCustomModels, getApiKeyMetadata } from "@/lib/localDb";
 import { createEmbeddingResponse, type EmbeddingHandlerOptions } from "@/lib/embeddings/service";
 import { extractApiKey, isValidApiKey } from "@/sse/services/auth";
 import { withInjectionGuard } from "@/middleware/promptInjectionGuard";
+import {
+  handleCorsOptions,
+  parseAndValidateBody,
+  enforcePolicyOrFail,
+} from "@/app/api/v1/_shared/routeHelpers";
 
 function toProviderScopedModelId(providerId: string, modelId: string): string {
   return modelId.startsWith(`${providerId}/`) ? modelId : `${providerId}/${modelId}`;
 }
 
 export async function OPTIONS() {
-  return new Response(null, {
-    headers: {
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "*",
-    },
-  });
+  return handleCorsOptions();
 }
 
 export async function GET() {
@@ -77,19 +74,9 @@ export async function handleValidatedEmbeddingRequestBody(
 }
 
 async function postHandler(request, context) {
-  let rawBody;
-  try {
-    rawBody = await request.json();
-  } catch {
-    log.warn("EMBED", "Invalid JSON body");
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid JSON body");
-  }
-
-  const validation = validateBody(v1EmbeddingsSchema, rawBody);
-  if (isValidationFailure(validation)) {
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, validation.error.message);
-  }
-  const body = validation.data;
+  const parsed = await parseAndValidateBody(request, v1EmbeddingsSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
   // Auth check
   const apiKeyRaw = extractApiKey(request);
@@ -100,9 +87,8 @@ async function postHandler(request, context) {
     return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
   }
 
-  // Enforce API key policies (model restrictions + budget limits)
-  const policy = await enforceApiKeyPolicy(request, body.model);
-  if (policy.rejection) return policy.rejection;
+  const policy = await enforcePolicyOrFail(request, body.model);
+  if (!policy.success) return policy.response;
 
   // Extract API key info for logging
   const apiKeyMeta = apiKeyRaw ? await getApiKeyMetadata(apiKeyRaw) : null;
@@ -110,7 +96,7 @@ async function postHandler(request, context) {
   // Build client raw request for logging
   const clientRawRequest = {
     endpoint: "/v1/embeddings",
-    body: rawBody,
+    body: parsed.rawBody,
     headers: Object.fromEntries(request.headers.entries()),
   };
 

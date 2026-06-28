@@ -12,9 +12,7 @@ import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import * as log from "@/sse/utils/logger";
 import { toJsonErrorPayload } from "@/shared/utils/upstreamError";
-import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
 import { v1SearchSchema } from "@/shared/validation/schemas";
-import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { recordCost } from "@/domain/costRules";
 import {
   computeCacheKey,
@@ -27,17 +25,14 @@ import {
   type RateLimitedCredentials,
 } from "@/app/api/v1/_shared/rateLimit";
 import { withInjectionGuard } from "@/middleware/promptInjectionGuard";
+import {
+  handleCorsOptions,
+  parseAndValidateBody,
+  enforcePolicyOrFail,
+} from "@/app/api/v1/_shared/routeHelpers";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "*",
-};
-
-/**
- * Handle CORS preflight
- */
 export async function OPTIONS() {
-  return new Response(null, { headers: CORS_HEADERS });
+  return handleCorsOptions();
 }
 
 /**
@@ -56,7 +51,7 @@ export async function GET() {
   }));
 
   return new Response(JSON.stringify({ object: "list", data }), {
-    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+    headers: { "Content-Type": "application/json" },
   });
 }
 
@@ -103,23 +98,12 @@ function buildDomainFilter(filters?: {
  * POST /v1/search — execute a web search
  */
 async function postHandler(request: Request, context: unknown) {
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    log.warn("SEARCH", "Invalid JSON body");
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid JSON body");
-  }
+  const parsed = await parseAndValidateBody(request, v1SearchSchema);
+  if (!parsed.success) return parsed.response;
+  const body = parsed.data;
 
-  const validation = validateBody(v1SearchSchema, rawBody);
-  if (isValidationFailure(validation)) {
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, validation.error.message);
-  }
-  const body = validation.data;
-
-  // Enforce API key policies — use "search" as model identifier for consistent policy config
-  const policy = await enforceApiKeyPolicy(request, "search");
-  if (policy.rejection) return policy.rejection;
+  const policy = await enforcePolicyOrFail(request, "search");
+  if (!policy.success) return policy.response;
 
   // Resolve provider and credentials
   if (body.provider) {
@@ -180,7 +164,9 @@ async function postHandler(request: Request, context: unknown) {
       // Sort by cost to find cheapest with credentials (fallback-only providers
       // are reached via the last-resort step below, never the primary pick).
       const sortedIds = Object.values(SEARCH_PROVIDERS)
-        .filter((provider) => !provider.fallbackOnly && supportsSearchType(provider, body.search_type))
+        .filter(
+          (provider) => !provider.fallbackOnly && supportsSearchType(provider, body.search_type)
+        )
         .sort((a, b) => a.costPerQuery - b.costPerQuery)
         .map((p) => p.id);
 
@@ -216,7 +202,9 @@ async function postHandler(request: Request, context: unknown) {
     // Find alternate for failover — must bind credentials to the matched provider.
     // Exclude fallback-only providers; they are only used by the last-resort step.
     const otherIds = Object.values(SEARCH_PROVIDERS)
-      .filter((provider) => !provider.fallbackOnly && supportsSearchType(provider, body.search_type))
+      .filter(
+        (provider) => !provider.fallbackOnly && supportsSearchType(provider, body.search_type)
+      )
       .sort((a, b) => a.costPerQuery - b.costPerQuery)
       .map((p) => p.id)
       .filter((id) => id !== providerConfig.id);
